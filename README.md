@@ -34,8 +34,6 @@ When it comes to relationships, it will look for an existing entry that matches 
 
 Otherwise, it will create a new object to fulfill the relationship.
 
-Relationship support coming soon.
-
 1. Set up your persistent store how you want it.
 1. Initialise a backup manager instance with:
 `-[[VTABackupManager alloc] initWithManagedObjectContext:(NSManagedObjectContext *)context

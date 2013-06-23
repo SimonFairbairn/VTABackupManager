@@ -271,10 +271,6 @@
             NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error writing to file."};
             error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
         }
-        
-
-
-        
 //        
 //        if ( [dictionary writeToFile:[backupFileForToday path] atomically:YES] ) {
 //            NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Failed to archive the plist. This could indicate an error with the data within the plist, or you have specified a backup directory that is inaccessible."};
@@ -327,9 +323,9 @@
 #pragma mark - Restore
 
 -(void)restoreFromURL:(NSURL *)URL withCompletitionHandler:(void (^)(BOOL success, NSError *))completion {
-    NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
-    NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
-    NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+//    NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
+//    NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
+//    NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
     
 }
 

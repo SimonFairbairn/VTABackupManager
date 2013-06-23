@@ -30,9 +30,9 @@ The `-[VTABackupManager listBackups];` method will return a list of all of the b
 
 The reason for this is you may have an initial non-empty state for your database that you need to create first (e.g. a table full of initial categories or tags). This utility has no idea what the pristine state of your persistent store should look like, and will therefore assume nothing about it. 
 
-<del>When it comes to relationships, it will look for an existing entry that matches the relationship entity first and, if it finds it, will link to that and not create a new object for that relationship (to prevent duplicate relationship objects).
+When it comes to relationships, it will look for an existing entry that matches the relationship entity first and, if it finds it, will link to that and not create a new object for that relationship (to prevent duplicate relationship objects).
 
-Otherwise, it will create a new object to fulfill the relationship.</del>
+Otherwise, it will create a new object to fulfill the relationship.
 
 Relationship support coming soon.
 

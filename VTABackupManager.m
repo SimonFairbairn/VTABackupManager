@@ -31,6 +31,7 @@
 @interface VTABackupManager ()
 
 @property (nonatomic, readwrite) NSArray *backupList;
+@property (nonatomic, strong) NSMutableDictionary *dictionaryOfInsertedRelationshipIDs;
 
 // Declared as a property as we're not expecting to be used very much
 @property (nonatomic, strong) NSDateFormatter *dateFormatter;
@@ -52,6 +53,13 @@
 
 -(id)init {
     return [self initWithManagedObjectContext:nil entityToBackup:nil];
+}
+
+-(NSMutableDictionary *)dictionaryOfInsertedRelationshipIDs {
+    if ( !_dictionaryOfInsertedRelationshipIDs ) {
+        _dictionaryOfInsertedRelationshipIDs = [[NSMutableDictionary alloc] init];
+    }
+    return _dictionaryOfInsertedRelationshipIDs;
 }
 
 
@@ -244,11 +252,11 @@
     // Create our private queue context
     NSManagedObjectContext *context = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
     context.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
-
+    [context save:nil];
     [context performBlock:^{
         BOOL success = YES;
         NSError *error;
-
+        
         // First, we need to create the directory
         [[NSFileManager defaultManager] createDirectoryAtPath:[self.backupDirectory path] withIntermediateDirectories:YES attributes:nil error:&error ];
         if ( error ) {
@@ -370,10 +378,11 @@
         NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
         NSLog(@"%@", myDictionary);
         for (NSDictionary *objectDictionary in myDictionary ) {
-            NSLog(@"%@", objectDictionary);
             [self managedObjectFromStructure:objectDictionary withContext:privateContext];
-            
         }
+        
+        // Empty the memory
+        self.dictionaryOfInsertedRelationshipIDs = nil;
         
         [privateContext save:&error];
         success = (error) ? NO : YES;
@@ -391,6 +400,9 @@
 
 
 #pragma mark - Archiving the Managed Object
+
+#define VTABackupManagerManagedObjectNameKey @"ManagedObjectName"
+#define VTABackupManagerManagedObjectIDKey @"ManagedObjectID"
 
 -(NSArray *)dataFromArrayOfManagedObjects:(NSArray *)objects Recursive:(BOOL)recursive {
     NSMutableArray *processedObjects = [[NSMutableArray alloc] init];
@@ -411,42 +423,160 @@
     NSDictionary *attributesByName = [[managedObject entity] attributesByName];
     NSDictionary *relationshipsByName = [[managedObject entity] relationshipsByName];
     NSMutableDictionary *valuesDictionary = [[managedObject dictionaryWithValuesForKeys:[attributesByName allKeys]] mutableCopy];
-    [valuesDictionary setObject:[[managedObject entity] name] forKey:@"ManagedObjectName"];
+    [valuesDictionary setObject:[[managedObject entity] name] forKey:VTABackupManagerManagedObjectNameKey];
+    [valuesDictionary setObject:[[managedObject objectID] URIRepresentation] forKey:VTABackupManagerManagedObjectIDKey];
+    
+
+    
     
     if ( recursive ) {
+        // Go through the relationships
         for (NSString *relationshipName in [relationshipsByName allKeys]) {
             NSRelationshipDescription *description = [[[managedObject entity] relationshipsByName] objectForKey:relationshipName];
+            // if the relationship is not a toMany relationsip, we just need the single object it points to
             if (![description isToMany]) {
                 NSManagedObject *relationshipObject = [managedObject valueForKey:relationshipName];
-                // If the relationship is non-nil
+                // If there is an object
                 if ( relationshipObject ) {
                     [valuesDictionary setObject:[self dataStructureFromManagedObject:relationshipObject recursive:NO] forKey:relationshipName];
-                }
+                } 
                 continue;
             }
+            // Otherwise, it's a set and each object needs to be added
             NSSet *relationshipObjects = [managedObject valueForKey:relationshipName];
-            NSMutableArray *relationshipArray = [[NSMutableArray alloc] init];
-            for (NSManagedObject *relationshipObject in relationshipObjects) {
-                [relationshipArray addObject:[self dataStructureFromManagedObject:relationshipObject recursive:NO]];
+            if ( [relationshipObjects count] > 0 ) {
+
+                NSMutableArray *relationshipArray = [[NSMutableArray alloc] init];
+                for (NSManagedObject *relationshipObject in relationshipObjects) {
+                    [relationshipArray addObject:[self dataStructureFromManagedObject:relationshipObject recursive:NO]];
+                }
+                [valuesDictionary setObject:relationshipArray forKey:relationshipName];
+                
             }
-            [valuesDictionary setObject:relationshipArray forKey:relationshipName];
+            
         }
     }
+    
+    NSLog(@"%@", valuesDictionary);
     return valuesDictionary;
+}
+
+
+
+- (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context recursive:(BOOL)recursive {
+    NSString *objectName = [objectDictionary objectForKey:VTABackupManagerManagedObjectNameKey];
+
+
+    NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
+    [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectNameKey];
+    [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectIDKey];
+    NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:context];
+    
+    
+
+    
+   
+    // for each item in this dictionary
+    for ( NSString *key in objectDictionary ) {
+        // If there is any relationship information, this has to be removed
+        if ( [[structureDictionary objectForKey:key] isKindOfClass:[NSDictionary class]] ) {
+            // toOne relationship
+            // Get the relationship details
+
+            
+            if ( recursive ) {
+                NSDictionary *detailDictionary = [structureDictionary objectForKey:key];
+                NSURL *relationshipObjectID  = [detailDictionary objectForKey:VTABackupManagerManagedObjectIDKey ];
+                NSManagedObject *existingObject = [self.dictionaryOfInsertedRelationshipIDs objectForKey:relationshipObjectID];
+                NSManagedObject *singleObject;
+                if ( !existingObject) {
+                    singleObject = [self managedObjectFromStructure:[structureDictionary objectForKey:key] withContext:context recursive:NO];
+                    [self.dictionaryOfInsertedRelationshipIDs setObject:singleObject forKey:[detailDictionary objectForKey:VTABackupManagerManagedObjectIDKey]];
+                    
+                } else {
+                    singleObject = [self.dictionaryOfInsertedRelationshipIDs objectForKey:relationshipObjectID];
+                }
+                NSString *relationshipName = [detailDictionary objectForKey:VTABackupManagerManagedObjectNameKey];
+                [managedObject setValue:singleObject forKey:relationshipName];
+                
+            }
+            [structureDictionary removeObjectForKey:key];
+
+        } else if ( [[structureDictionary objectForKey:key] isKindOfClass:[NSArray class]] ) {
+            // toMany relationship
+            // We have an array of items
+            if ( recursive ) {
+                NSMutableSet *mutableSet = [[NSMutableSet alloc] init];
+
+                NSLog(@"%@", [structureDictionary objectForKey:key]);
+                for ( NSDictionary *detailDictionary in [structureDictionary objectForKey:key]) {
+//                    // This should be the same for everything in this loop
+
+                    NSURL *relationshipObjectID  = [detailDictionary objectForKey:VTABackupManagerManagedObjectIDKey ];
+                    NSManagedObject *existingObject = [self.dictionaryOfInsertedRelationshipIDs objectForKey:relationshipObjectID];
+                    NSManagedObject *singleObject;
+                    if ( !existingObject) {
+                        singleObject = [self managedObjectFromStructure:detailDictionary withContext:context recursive:NO];
+                        [self.dictionaryOfInsertedRelationshipIDs setObject:singleObject forKey:[detailDictionary objectForKey:VTABackupManagerManagedObjectIDKey]];
+//
+                    } else {
+                        singleObject = [self.dictionaryOfInsertedRelationshipIDs objectForKey:relationshipObjectID];
+                    }
+                    [mutableSet addObject:singleObject];
+//
+                }
+                if ( mutableSet ) {
+//
+                    [managedObject setValue:mutableSet forKey:key];
+                }
+            }
+            
+            
+            [structureDictionary removeObjectForKey:key];
+        }
+    }
+    
+    
+    
+    [managedObject setValuesForKeysWithDictionary:structureDictionary];
+    
+
+    
+    return managedObject;
 }
 
 
 - (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context
 {
-    NSString *objectName = [objectDictionary objectForKey:@"ManagedObjectName"];
-    NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
-    [structureDictionary removeObjectForKey:@"ManagedObjectName"];
-    NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:context];
-    [managedObject setValuesForKeysWithDictionary:structureDictionary];
-    
-    return managedObject;
+    return [self managedObjectFromStructure:objectDictionary withContext:context recursive:YES];
 }
-
+//
+//- (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withManagedObjectContext:(NSManagedObjectContext*)moc
+//{
+//    NSString *objectName = [objectDictionary objectForKey:@"ManagedObjectName"];
+//    NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
+//    [structureDictionary removeObjectForKey:@"ManagedObjectName"];
+//    
+//    NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:moc];
+//    [managedObject setValuesForKeysWithDictionary:structureDictionary];
+//    
+//    for (NSString *relationshipName in [[[managedObject entity] relationshipsByName] allKeys]) {
+//        NSRelationshipDescription *description = [[[managedObject entity] relationshipsByName] objectForKey:relationshipName];
+//        if (![description isToMany]) {
+//            NSDictionary *childStructureDictionary = [structureDictionary objectForKey:relationshipName];
+//            NSManagedObject *childObject = [self managedObjectFromStructure:childStructureDictionary withManagedObjectContext:moc];
+//            [managedObject setValue:childObject forKey:relationshipName];
+//            continue;
+//        }
+//        NSMutableSet *relationshipSet = [managedObject mutableSetForKey:relationshipName];
+//        NSArray *relationshipArray = [structureDictionary objectForKey:relationshipName];
+//        for (NSDictionary *childStructureDictionary in relationshipArray) {
+//            NSManagedObject *childObject = [self managedObjectFromStructure:childStructureDictionary withManagedObjectContext:moc];
+//            [relationshipSet addObject:childObject];
+//        }
+//    }
+//    return managedObject;
+//}
 
 
 

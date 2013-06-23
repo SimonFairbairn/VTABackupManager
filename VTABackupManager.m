@@ -254,6 +254,7 @@
     context.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
     [context save:nil];
     [context performBlock:^{
+        sleep(3);
         BOOL success = YES;
         NSError *error;
         
@@ -301,9 +302,8 @@
         success = ( error ) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessBackupsNotification object:self];
-            [[NSNotificationCenter defaultCenter] postNotification:note
-             ];
+            NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessBackupsNotification object:nil];
+            [[NSNotificationCenter defaultCenter] postNotification:note];
             
             completion(success, error);
         });

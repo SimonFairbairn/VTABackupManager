@@ -25,14 +25,19 @@
 
 
 // Indexes for the information given in the backupList array
+// 
 enum VTABackupManagerBackupListIndex {
     VTABackupManagerBackupListIndexPath = 0,
-    VTABackupManagerBackupListIndexDate = 1
+    VTABackupManagerBackupListIndexDate = 1,
+    VTABackupManagerBackupListIndexURL = 2
 };
 
 // Notifications
 #define VTABackupManagerWillProcessBackupsNotification @"VTABackupManagerWillProcessBackupsNotification"
 #define VTABackupManagerDidProcessBackupsNotification @"VTABackupManagerDidProcessBackupsNotification"
+
+#define VTABackupManagerWillProcessRestoreNotification @"VTABackupManagerWillProcessRestoreNotification"
+#define VTABackupManagerDidProcessRestoreNotification @"VTABackupManagerDidProcessRestoreNotification"
 
 
 @interface VTABackupManager : NSObject

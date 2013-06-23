@@ -122,12 +122,13 @@
 -(NSArray *)listBackups {
     
 #if debugLog
-    NSLog(@"Starting list update with sleep");
+    NSLog(@"Starting list update");
 #endif
     
     
     NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
     NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[self backupDirectory] path] error:nil] ;
+    NSLog(@"%@", backups);
     mutableBackups = [backups mutableCopy];
     for ( NSString *path in backups ) {
         if ( ![[path pathExtension] isEqualToString:VTABackupManagerFileExtenstion] ) {
@@ -174,13 +175,13 @@
     
     
     NSMutableArray *backupArray = [[NSMutableArray alloc] init];
-    
+
     for (NSString *path in mutableBackups) {
+        
         NSString *backupPath = [[[path lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
         NSDate *backupDate = [self.dateFormatter dateFromString:backupPath];
-        NSArray *backupObjects = [NSArray arrayWithObjects:path,backupDate, nil];
+        NSArray *backupObjects = @[path,backupDate,[self.backupDirectory URLByAppendingPathComponent:path]];
         [backupArray addObject:backupObjects];
-        
     }
     self.backupList = [backupArray copy];
     return backupArray;
@@ -227,6 +228,13 @@
         completion(NO, error);
         return;
     }
+    if ( ![self.context save:nil] ) {
+        NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error saving context prior to backup"};
+        NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
+        completion(NO, error);
+        return;
+    }
+
     
     // Post notification that we will begin backing up
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessBackupsNotification object:self];
@@ -260,6 +268,9 @@
         NSFetchRequest *request = [[NSFetchRequest alloc] initWithEntityName:self.entity.name];
         NSArray *results = [context executeFetchRequest:request error:&error];
 
+#if debugLog
+        NSLog(@"Objects for entity: %@", results);
+#endif
         // Time to archive the results
         NSArray *dictionary = [self dataFromArrayOfManagedObjects:results Recursive:recursive];
         NSMutableData * data = [[NSMutableData alloc] init];
@@ -282,6 +293,10 @@
         success = ( error ) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
+            NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessBackupsNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotification:note
+             ];
+            
             completion(success, error);
         });
         
@@ -323,9 +338,54 @@
 #pragma mark - Restore
 
 -(void)restoreFromURL:(NSURL *)URL withCompletitionHandler:(void (^)(BOOL success, NSError *))completion {
-//    NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
-//    NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
-//    NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+    
+    // Perform some sanity checking to prevent crashes
+    if ( !self.context ) {
+        NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No NSManagedObjectContext found. Did you forget to set the context?"};
+        NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
+        completion(NO, error);
+        return;
+    }
+    if ( !self.entity ) {
+        
+        NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No entity given to backup. Did you forget to set the entity name?"};
+        NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
+        completion(NO, error);
+        return;
+    }
+    
+    // Post notification that we will begin restoring
+    NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessRestoreNotification object:self];
+    [[NSNotificationCenter defaultCenter] postNotification:note];
+    
+    NSManagedObjectContext *privateContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
+    privateContext.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
+    
+    [privateContext performBlock:^{
+        BOOL success = YES;
+        NSError *error;
+        
+        NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
+        NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
+        NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+        NSLog(@"%@", myDictionary);
+        for (NSDictionary *objectDictionary in myDictionary ) {
+            NSLog(@"%@", objectDictionary);
+            [self managedObjectFromStructure:objectDictionary withContext:privateContext];
+            
+        }
+        
+        [privateContext save:&error];
+        success = (error) ? NO : YES;
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessRestoreNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotification:note
+             ];
+            completion(success, error);
+        });
+        
+    }];
     
 }
 
@@ -373,6 +433,18 @@
         }
     }
     return valuesDictionary;
+}
+
+
+- (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context
+{
+    NSString *objectName = [objectDictionary objectForKey:@"ManagedObjectName"];
+    NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
+    [structureDictionary removeObjectForKey:@"ManagedObjectName"];
+    NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:context];
+    [managedObject setValuesForKeysWithDictionary:structureDictionary];
+    
+    return managedObject;
 }
 
 

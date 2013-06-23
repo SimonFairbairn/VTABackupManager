@@ -342,6 +342,10 @@
     return processedObjects;
 }
 
+// Modified code based on ideas found here:
+// http://stackoverflow.com/questions/1371749/can-i-encode-a-subclass-of-nsmanagedobject
+// http://stackoverflow.com/questions/2362323/json-and-core-data-on-the-iphone
+
 - (NSDictionary*)dataStructureFromManagedObject:(NSManagedObject*)managedObject recursive:(BOOL)recursive
 {
     NSDictionary *attributesByName = [[managedObject entity] attributesByName];

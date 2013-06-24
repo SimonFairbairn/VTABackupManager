@@ -25,7 +25,7 @@
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 #define VTABackupManagerFileExtenstion @"vtabackup"
 
-#define debugLog 1
+#define debugLog 0
 
 
 @interface VTABackupManager ()
@@ -136,7 +136,9 @@
     
     NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
     NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[self backupDirectory] path] error:nil] ;
+#if debugLog
     NSLog(@"%@", backups);
+#endif
     mutableBackups = [backups mutableCopy];
     for ( NSString *path in backups ) {
         if ( ![[path pathExtension] isEqualToString:VTABackupManagerFileExtenstion] ) {
@@ -376,7 +378,9 @@
         NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
         NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
         NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+#if debugLog
         NSLog(@"%@", myDictionary);
+#endif
         for (NSDictionary *objectDictionary in myDictionary ) {
             [self managedObjectFromStructure:objectDictionary withContext:privateContext];
         }
@@ -456,8 +460,9 @@
             
         }
     }
-    
+#if debugLog
     NSLog(@"%@", valuesDictionary);
+#endif
     return valuesDictionary;
 }
 
@@ -507,8 +512,9 @@
             // We have an array of items
             if ( recursive ) {
                 NSMutableSet *mutableSet = [[NSMutableSet alloc] init];
-
+#if debugLog
                 NSLog(@"%@", [structureDictionary objectForKey:key]);
+#endif
                 for ( NSDictionary *detailDictionary in [structureDictionary objectForKey:key]) {
 //                    // This should be the same for everything in this loop
 

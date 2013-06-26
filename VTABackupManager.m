@@ -25,7 +25,7 @@
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 #define VTABackupManagerFileExtenstion @"vtabackup"
 
-#define debugLog 1
+#define debugLog 0
 
 
 @interface VTABackupManager ()

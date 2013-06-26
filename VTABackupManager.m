@@ -256,7 +256,9 @@
     context.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
     [context save:nil];
     [context performBlock:^{
+#if debugLog
         sleep(3);
+#endif
         BOOL success = YES;
         NSError *error;
         

@@ -317,6 +317,23 @@
     
 }
 
+-(BOOL)deleteBackupAtURL:(NSURL *)URL {
+    NSError *error;
+    [[NSFileManager defaultManager] removeItemAtURL:URL error:&error];
+    if ( error ) {
+#if debugLog
+        NSLog(@"%@", [error localizedDescription]);
+#endif
+        
+        return NO;
+    } else {
+        // Destroy and recreate the list
+        self.backupList = nil;
+    }
+    return YES;
+}
+
+
 -(void)deleteOldBackups {
     NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
     calendar.timeZone = [NSTimeZone defaultTimeZone];

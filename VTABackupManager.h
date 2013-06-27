@@ -78,6 +78,10 @@ enum VTABackupManagerBackupListIndex {
 // If you don't want it to be recursive, use this method and set the recursive flag to NO
 -(void)backupWithCompletionHandler:(void (^)(BOOL success, NSError *error))completion forceOverwrite:(BOOL)overwrite recursive:(BOOL)recursive;
 
+// Delete the backup at the given URL, YES if successful NO otherwise
+-(BOOL)deleteBackupAtURL:(NSURL *)URL;
+
+
 // Takes a backup path and attempts to restore the Core Data stack from it.
 // Will empty the database before hand, so use with caution
 //

@@ -25,7 +25,7 @@
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 #define VTABackupManagerFileExtenstion @"vtabackup"
 
-#define debugLog 0
+#define debugLog 1
 
 
 @interface VTABackupManager ()
@@ -137,7 +137,7 @@
     NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
     NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[self backupDirectory] path] error:nil] ;
 #if debugLog
-    NSLog(@"%@", backups);
+    NSLog(@"List of backups: %@", backups);
 #endif
     mutableBackups = [backups mutableCopy];
     for ( NSString *path in backups ) {
@@ -331,6 +331,10 @@
         self.backupList = nil;
     }
     return YES;
+}
+
+-(void)resetBackupList {
+    self.backupList = nil;
 }
 
 

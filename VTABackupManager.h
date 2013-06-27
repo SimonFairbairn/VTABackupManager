@@ -89,5 +89,8 @@ enum VTABackupManagerBackupListIndex {
 // an error object indicating the error if there was one.
 -(void)restoreFromURL:(NSURL *)URL withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
 
+// Call this if you make any changes to the filesystem outside of the backup manager
+-(void)resetBackupList;
+
 
 @end

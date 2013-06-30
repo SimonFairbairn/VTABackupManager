@@ -52,6 +52,9 @@ enum VTABackupManagerBackupListIndex {
 // How many days of backups should be kept? 0 is unlimited.
 @property (nonatomic, strong) NSNumber *daysToKeep;
 
+// How many total backups to keep. If there's a conflict between this and daysToKeep, this wins
+@property (nonatomic, strong) NSNumber *backupsToKeep;
+
 // directory to backup to, defaults to <Documents directory>/backups/
 @property (nonatomic, strong) NSURL *backupDirectory;
 

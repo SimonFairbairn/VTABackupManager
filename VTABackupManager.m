@@ -104,6 +104,13 @@
     return _daysToKeep;
 }
 
+-(NSNumber *) backupsToKeep {
+    if ( !_backupsToKeep ) {
+        _backupsToKeep = @(5);
+        
+    }
+    return _backupsToKeep;
+}
 
 #pragma mark - Methods
 
@@ -271,10 +278,7 @@
         }
         
         // Delete any remaining backups, unless the old backups to delete is set to 0 or below
-        if ( !self.daysToKeep || [self.daysToKeep intValue] < 1) {
-            [self deleteOldBackups];
-        }
-        
+        [self deleteOldBackups];
 #define VTAEncoderKey @"VTAEncoderKey"
 
         // Let's get everything from database for the given entity
@@ -339,6 +343,18 @@
 
 
 -(void)deleteOldBackups {
+    
+#if debugLog
+    NSLog(@"List of backups: %@", self.backupList);
+#endif
+    
+    NSUInteger numberOfBackups = [self.backupsToKeep intValue];
+    if ( [self.backupList count] < numberOfBackups ) {
+        return;
+    }
+    
+
+    
     NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
     calendar.timeZone = [NSTimeZone defaultTimeZone];
     NSDateComponents *localComponents = [calendar components:(NSDayCalendarUnit )  fromDate:[NSDate date]];
@@ -351,7 +367,13 @@
     NSLog(@"Two weeks ago: %@", [self.dateFormatter stringFromDate:twoWeeksAgo]);
 #endif
     
+    NSUInteger i = 0;
+    
+    
     for (NSArray *backupDetails in self.backupList ) {
+        i++;
+        if ( i <= numberOfBackups ) continue;
+        
         NSDate *fileDate = [backupDetails objectAtIndex:VTABackupManagerBackupListIndexDate];
         if ( [fileDate compare:twoWeeksAgo] == NSOrderedAscending ) {
 #if debugLog

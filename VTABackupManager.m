@@ -25,7 +25,7 @@
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 #define VTABackupManagerFileExtenstion @"vtabackup"
 
-#define debugLog 1
+#define debugLog 0
 
 
 @interface VTABackupManager ()
@@ -122,7 +122,7 @@
     
     // This is saying "Give me the point in absolute time where these components were true, and as if the time zone
     NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-    calendar.timeZone = [NSTimeZone defaultTimeZone];
+    calendar.timeZone = [NSTimeZone localTimeZone];
     NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:date];
     localComponents.calendar = calendar;
     
@@ -356,7 +356,7 @@
 
     
     NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-    calendar.timeZone = [NSTimeZone defaultTimeZone];
+    calendar.timeZone = [NSTimeZone localTimeZone];
     NSDateComponents *localComponents = [calendar components:(NSDayCalendarUnit )  fromDate:[NSDate date]];
     localComponents.calendar = calendar;
     [localComponents setDay:-[self.daysToKeep intValue]];

@@ -197,8 +197,10 @@
         
         NSString *backupPath = [[[path lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
         NSDate *backupDate = [self.dateFormatter dateFromString:backupPath];
-        NSArray *backupObjects = @[path,backupDate,[self.backupDirectory URLByAppendingPathComponent:path]];
-        [backupArray addObject:backupObjects];
+        if ( backupDate ) {
+            NSArray *backupObjects = @[path,backupDate,[self.backupDirectory URLByAppendingPathComponent:path]];
+            [backupArray addObject:backupObjects];
+        }
     }
     self.backupList = [backupArray copy];
     return backupArray;
@@ -261,7 +263,7 @@
     // Create our private queue context
     NSManagedObjectContext *context = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
     context.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
-    [context save:nil];
+
     [context performBlock:^{
 #if debugLog
         sleep(3);
@@ -437,6 +439,8 @@
         success = (error) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
+            
+
             NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessRestoreNotification object:self];
             [[NSNotificationCenter defaultCenter] postNotification:note
              ];

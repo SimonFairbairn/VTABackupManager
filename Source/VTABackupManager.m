@@ -40,21 +40,6 @@
 
 @implementation VTABackupManager
 
-#pragma mark - Initialisation
--(VTABackupManager *)initWithManagedObjectContext:(NSManagedObjectContext *)context entityToBackup:(NSEntityDescription *)entity {
-    self = [super init];
-    if ( self ) {
-        _context = context;
-        _entity = entity;
-    }
-    return self;
-    
-}
-
--(id)init {
-    return [self initWithManagedObjectContext:nil entityToBackup:nil];
-}
-
 -(NSMutableDictionary *)dictionaryOfInsertedRelationshipIDs {
     if ( !_dictionaryOfInsertedRelationshipIDs ) {
         _dictionaryOfInsertedRelationshipIDs = [[NSMutableDictionary alloc] init];
@@ -117,10 +102,7 @@
 
 -(NSString *)stringForDate:(NSDate *)date {
     
-    
     // Currently, 9pm UTC
-    
-    // This is saying "Give me the point in absolute time where these components were true, and as if the time zone
     NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
     calendar.timeZone = [NSTimeZone localTimeZone];
     NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:date];
@@ -140,21 +122,23 @@
     NSLog(@"Starting list update");
 #endif
     
-    
     NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
     NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[self backupDirectory] path] error:nil] ;
+    
 #if debugLog
     NSLog(@"List of backups: %@", backups);
 #endif
+    
     mutableBackups = [backups mutableCopy];
+    
     for ( NSString *path in backups ) {
         if ( ![[path pathExtension] isEqualToString:VTABackupManagerFileExtenstion] ) {
             [mutableBackups removeObject:path];
         }
     }
     
-    
     [mutableBackups sortUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+        
         // if obj1 > obj2 return (NSComparisonResult)NSOrderedDescending;
         NSURL *file1URL = obj1;
         NSURL *file2URL = obj2;
@@ -163,33 +147,29 @@
         NSDate *file1Date = [self.dateFormatter dateFromString:file1Datestring];
         NSDate *file2Date = [self.dateFormatter dateFromString:file2Datestring];
         
-        //        NSString *backupPath = [[[path lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
-        //        NSDate *backupDate = [self.dateFormatter dateFromString:backupPath];
-        
         if ( [file1Date laterDate:file2Date] ) {
             return NSOrderedDescending;
         }
+        
         if ( [file1Date earlierDate:file2Date] ) {
             return NSOrderedAscending;
         }
+        
         return NSOrderedSame;
         
         NSDictionary *file1Atts = [[NSFileManager defaultManager] attributesOfItemAtPath:[[[self backupDirectory] URLByAppendingPathComponent:obj1] path] error:nil];
         NSDictionary *file2Atts = [[NSFileManager defaultManager] attributesOfItemAtPath:[[[self backupDirectory] URLByAppendingPathComponent:obj2] path] error:nil];
+        
         if ( [[file1Atts objectForKey:NSFileCreationDate] laterDate:[file2Atts objectForKey:NSFileCreationDate]]) {
             return NSOrderedDescending;
         }
+        
         if ( [[file1Atts objectForKey:NSFileCreationDate] earlierDate:[file2Atts objectForKey:NSFileCreationDate]]) {
             return NSOrderedDescending;
         }
         
-        
-        
         return NSOrderedSame;
     }];
-    
-    
-    
     
     NSMutableArray *backupArray = [[NSMutableArray alloc] init];
 
@@ -197,27 +177,32 @@
         
         NSString *backupPath = [[[path lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
         NSDate *backupDate = [self.dateFormatter dateFromString:backupPath];
+        
         if ( backupDate ) {
             NSArray *backupObjects = @[path,backupDate,[self.backupDirectory URLByAppendingPathComponent:path]];
             [backupArray addObject:backupObjects];
         }
+        
     }
+    
     self.backupList = [backupArray copy];
     return backupArray;
 }
 
-
-
-
 #pragma mark - Backup
 
--(void)backupWithCompletionHandler:(void (^)(BOOL, NSError *))completion forceOverwrite:(BOOL)overwrite {
-    [self backupWithCompletionHandler:completion forceOverwrite:overwrite recursive:YES];
+-(void)backupEntityWithName:(NSString *)name
+                  inContext:(NSManagedObjectContext *)context
+          completionHandler:(void (^)(BOOL, NSError *))completion
+             forceOverwrite:(BOOL)overwrite {
+    [self backupEntityWithName:name inContext:context completionHandler:completion forceOverwrite:overwrite recursive:YES];
 }
 
-
--(void)backupWithCompletionHandler:(void (^)(BOOL success, NSError *error))completion forceOverwrite:(BOOL)overwrite recursive:(BOOL)recursive {
-    
+-(void)backupEntityWithName:(NSString *)name
+                  inContext:(NSManagedObjectContext *)context
+          completionHandler:(void (^)(BOOL, NSError *))completion
+             forceOverwrite:(BOOL)overwrite
+                  recursive:(BOOL)recursive {
     
     // The URL for today's file
     NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[self stringForDate:[NSDate date] ] ];
@@ -225,35 +210,39 @@
     // If we've already backed up today and we're not forcing an overwrite, we need go no further
     if ( !overwrite ) {
         if ( [[NSFileManager defaultManager] fileExistsAtPath:[backupFileForToday path]  ]) {
+
 #if debugLog
-            
             NSLog(@"File exists, overwrite not set. No action to perform. Returning.");
 #endif
+            
             return;
-        } 
+        }
     }
     
     // Perform some sanity checking to prevent crashes
-    if ( !self.context ) {
+    if ( !context ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No NSManagedObjectContext found. Did you forget to set the context?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
         completion(NO, error);
         return;
     }
-    if ( !self.entity ) {
-        
+    
+    NSEntityDescription *entity = [NSEntityDescription entityForName:name inManagedObjectContext:context];
+    
+    if ( !entity ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No entity given to backup. Did you forget to set the entity name?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
         completion(NO, error);
         return;
     }
-    if ( ![self.context save:nil] ) {
+    
+    if ( ![context save:nil] ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error saving context prior to backup"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
         completion(NO, error);
         return;
     }
-
+    
     
     // Post notification that we will begin backing up
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessBackupsNotification object:self];
@@ -261,32 +250,38 @@
     
     
     // Create our private queue context
-    NSManagedObjectContext *context = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
-    context.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
-
-    [context performBlock:^{
+    NSManagedObjectContext *backgroundContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
+    backgroundContext.persistentStoreCoordinator = context.persistentStoreCoordinator;
+    
+    [backgroundContext performBlock:^{
+        
 #if debugLog
         sleep(3);
 #endif
+        
         BOOL success = YES;
         NSError *error;
         
         // First, we need to create the directory
         [[NSFileManager defaultManager] createDirectoryAtPath:[self.backupDirectory path] withIntermediateDirectories:YES attributes:nil error:&error ];
+
         if ( error ) {
+            
 #if debugLog
             NSLog(@"Error creating directory: %@", [error localizedDescription]);
-#endif      
+#endif
+            
         }
         
         // Delete any remaining backups, unless the old backups to delete is set to 0 or below
         [self deleteOldBackups];
+        
 #define VTAEncoderKey @"VTAEncoderKey"
-
+        
         // Let's get everything from database for the given entity
-        NSFetchRequest *request = [[NSFetchRequest alloc] initWithEntityName:self.entity.name];
+        NSFetchRequest *request = [[NSFetchRequest alloc] initWithEntityName:entity.name];
         NSArray *results = [context executeFetchRequest:request error:&error];
-
+        
 #if debugLog
         NSLog(@"Objects for entity: %@", results);
 #endif
@@ -301,11 +296,11 @@
             NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error writing to file."};
             error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
         }
-//        
-//        if ( [dictionary writeToFile:[backupFileForToday path] atomically:YES] ) {
-//            NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Failed to archive the plist. This could indicate an error with the data within the plist, or you have specified a backup directory that is inaccessible."};
-//            error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
-//        }
+        //
+        //        if ( [dictionary writeToFile:[backupFileForToday path] atomically:YES] ) {
+        //            NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Failed to archive the plist. This could indicate an error with the data within the plist, or you have specified a backup directory that is inaccessible."};
+        //            error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
+        //        }
         
         
         // If error is set, we weren't successful
@@ -394,18 +389,13 @@
 
 #pragma mark - Restore
 
--(void)restoreFromURL:(NSURL *)URL withCompletitionHandler:(void (^)(BOOL success, NSError *))completion {
-    
+-(void)restoreFromURL:(NSURL *)URL
+          intoContext:(NSManagedObjectContext *)context
+withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
+ 
     // Perform some sanity checking to prevent crashes
-    if ( !self.context ) {
+    if ( !context ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No NSManagedObjectContext found. Did you forget to set the context?"};
-        NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
-        completion(NO, error);
-        return;
-    }
-    if ( !self.entity ) {
-        
-        NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No entity given to backup. Did you forget to set the entity name?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
         completion(NO, error);
         return;
@@ -416,7 +406,7 @@
     [[NSNotificationCenter defaultCenter] postNotification:note];
     
     NSManagedObjectContext *privateContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
-    privateContext.persistentStoreCoordinator = self.context.persistentStoreCoordinator;
+    privateContext.persistentStoreCoordinator = context.persistentStoreCoordinator;
     
     [privateContext performBlock:^{
         BOOL success = YES;
@@ -440,7 +430,7 @@
         
         dispatch_async(dispatch_get_main_queue(), ^{
             
-
+            
             NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessRestoreNotification object:self];
             [[NSNotificationCenter defaultCenter] postNotification:note
              ];

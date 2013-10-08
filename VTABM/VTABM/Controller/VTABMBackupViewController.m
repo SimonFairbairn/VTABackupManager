@@ -24,8 +24,7 @@
 
 -(VTABackupManager *)backupManager {
     if ( !_backupManager ) {
-        NSEntityDescription *cat = [NSEntityDescription entityForName:@"Cat" inManagedObjectContext:[VTABMStore sharedStore].context];
-        _backupManager = [[VTABackupManager alloc] initWithManagedObjectContext:[VTABMStore sharedStore].context entityToBackup:cat];
+        _backupManager = [[VTABackupManager alloc] init];
     }
     return _backupManager;
 }
@@ -62,7 +61,7 @@
     self.tableView.userInteractionEnabled = NO;
     [self.activityIndicator startAnimating];
     
-    [self.backupManager backupWithCompletionHandler:^(BOOL success, NSError *error) {
+    [self.backupManager backupEntityWithName:@"Cat" inContext:[[VTABMStore sharedStore] context] completionHandler:^(BOOL success, NSError *error) {
         if ( !error ) {
             UIAlertView *view = [[UIAlertView alloc] initWithTitle:@"Backup Complete" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
             [view show];
@@ -98,8 +97,11 @@
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [self.activityIndicator startAnimating];
     NSArray *backup = [self.backupManager.backupList objectAtIndex:indexPath.row];
-    [self.backupManager restoreFromURL:[backup objectAtIndex:VTABackupManagerBackupListIndexURL] withCompletitionHandler:^(BOOL success, NSError *error) {
-        
+    
+    [self.backupManager restoreFromURL:[backup objectAtIndex:VTABackupManagerBackupListIndexURL]
+                           intoContext:[[VTABMStore sharedStore] context]
+
+               withCompletitionHandler:^(BOOL success, NSError *error) {
         if ( error ) {
             
         } else {
@@ -108,8 +110,9 @@
             [self.activityIndicator stopAnimating];
             
         }
-        
+
     }];
+
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 

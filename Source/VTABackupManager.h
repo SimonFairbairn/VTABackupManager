@@ -42,14 +42,6 @@ enum VTABackupManagerBackupListIndex {
 
 @interface VTABackupManager : NSObject
 
-// The context to back up
-// If you delete and recreate the store, remember to update this context
-@property (nonatomic, strong) NSManagedObjectContext *context;
-
-// The entity name to back up. This method is recursive and will
-// save all the relationship data
-@property (nonatomic, strong) NSEntityDescription *entity;
-
 // How many days of backups should be kept? 0 is unlimited.
 @property (nonatomic, strong) NSNumber *daysToKeep;
 
@@ -67,31 +59,35 @@ enum VTABackupManagerBackupListIndex {
 // An array of URLs pointing to the backups
 @property (nonatomic, readonly) NSArray *backupList;
 
-
-// Designated initialiser
--(VTABackupManager *)initWithManagedObjectContext:(NSManagedObjectContext *)context entityToBackup:(NSEntityDescription *)entity;
-
 // Run a backup with your own completition handler
 // Backups run on a separate, parallel context with a private queue (so off the main thread)
 // Completion blocks always run on the main thread.
 //
 // The method will pass a BOOL indicating whether or not the process was successful and
 // an error object indicating the error if there was one.
--(void)backupWithCompletionHandler:(void (^)(BOOL success, NSError *error))completion forceOverwrite:(BOOL)overwrite;
+-(void)backupEntityWithName:(NSString *)name
+                  inContext:(NSManagedObjectContext *)context
+          completionHandler:(void (^)(BOOL success, NSError *error))completion
+             forceOverwrite:(BOOL)overwrite;
 
 // If you don't want it to be recursive, use this method and set the recursive flag to NO
--(void)backupWithCompletionHandler:(void (^)(BOOL success, NSError *error))completion forceOverwrite:(BOOL)overwrite recursive:(BOOL)recursive;
+-(void)backupEntityWithName:(NSString *)name
+                  inContext:(NSManagedObjectContext *)context
+          completionHandler:(void (^)(BOOL success, NSError *error))completion
+             forceOverwrite:(BOOL)overwrite
+                  recursive:(BOOL)recursive;
 
 // Delete the backup at the given URL, YES if successful NO otherwise
 -(BOOL)deleteBackupAtURL:(NSURL *)URL;
-
 
 // Takes a backup path and attempts to restore the Core Data stack from it.
 // Will empty the database before hand, so use with caution
 //
 // The method will pass a BOOL indicating whether or not the process was successful and
 // an error object indicating the error if there was one.
--(void)restoreFromURL:(NSURL *)URL withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
+-(void)restoreFromURL:(NSURL *)URL
+          intoContext:(NSManagedObjectContext *)context
+withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
 
 // Call this if you make any changes to the filesystem outside of the backup manager
 -(void)resetBackupList;

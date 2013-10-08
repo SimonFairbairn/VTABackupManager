@@ -43,6 +43,7 @@ enum VTABackupManagerBackupListIndex {
 @interface VTABackupManager : NSObject
 
 // The context to back up
+// If you delete and recreate the store, remember to update this context
 @property (nonatomic, strong) NSManagedObjectContext *context;
 
 // The entity name to back up. This method is recursive and will

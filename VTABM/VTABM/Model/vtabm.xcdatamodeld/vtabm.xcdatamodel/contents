@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model userDefinedModelVersionIdentifier="" type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="3396" systemVersion="12F37" minimumToolsVersion="Xcode 4.3" macOSVersion="Automatic" iOSVersion="Automatic">
+    <entity name="Cat" representedClassName="Cat" syncable="YES">
+        <attribute name="attribution" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="attributionURL" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="created" optional="YES" attributeType="Date" syncable="YES"/>
+        <attribute name="imageKey" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="imageURL" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="name" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="order" optional="YES" attributeType="Float" defaultValueString="0.0" syncable="YES"/>
+        <attribute name="thumbnail" optional="YES" attributeType="Binary" syncable="YES"/>
+        <relationship name="toy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Toy" inverseName="cats" inverseEntity="Toy" syncable="YES"/>
+    </entity>
+    <entity name="Toy" representedClassName="Toy" syncable="YES">
+        <attribute name="name" optional="YES" attributeType="String" syncable="YES"/>
+        <relationship name="cats" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Cat" inverseName="toy" inverseEntity="Cat" syncable="YES"/>
+    </entity>
+    <elements>
+        <element name="Cat" positionX="0" positionY="0" width="0" height="0"/>
+        <element name="Toy" positionX="0" positionY="0" width="0" height="0"/>
+    </elements>
+</model>

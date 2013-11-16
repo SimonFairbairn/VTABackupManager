@@ -411,6 +411,8 @@
         return;
     }
     
+    
+    
     // Post notification that we will begin restoring
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessRestoreNotification object:self];
     [[NSNotificationCenter defaultCenter] postNotification:note];
@@ -423,8 +425,16 @@
         NSError *error;
         
         NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
-        NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
-        NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+
+        NSDictionary *myDictionary;
+        if ( fileData ) {
+            NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
+            myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+        } else {
+            success = NO;
+            error = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileNoSuchFileError userInfo:nil];
+        }
+        
 #if debugLog
         NSLog(@"%@", myDictionary);
 #endif
@@ -525,10 +535,6 @@
     [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectNameKey];
     [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectIDKey];
     NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:context];
-    
-    
-
-    
    
     // for each item in this dictionary
     for ( NSString *key in objectDictionary ) {

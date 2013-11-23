@@ -411,8 +411,6 @@
         return;
     }
     
-    
-    
     // Post notification that we will begin restoring
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessRestoreNotification object:self];
     [[NSNotificationCenter defaultCenter] postNotification:note];

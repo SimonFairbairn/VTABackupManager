@@ -23,170 +23,108 @@
 #import "VTABackupManager.h"
 
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
-#define VTABackupManagerFileExtenstion @"vtabackup"
 
-#define debugLog 0
-
+#define debugLog 1
 
 @interface VTABackupManager ()
 
 @property (nonatomic, readwrite) NSArray *backupList;
 @property (nonatomic, strong) NSMutableDictionary *dictionaryOfInsertedRelationshipIDs;
 
-// Declared as a property as we're not expecting to be used very much
-@property (nonatomic, strong) NSDateFormatter *dateFormatter;
-
 @end
 
 @implementation VTABackupManager
 
+#pragma mark - Properties
+
 -(NSMutableDictionary *)dictionaryOfInsertedRelationshipIDs {
+    
     if ( !_dictionaryOfInsertedRelationshipIDs ) {
         _dictionaryOfInsertedRelationshipIDs = [[NSMutableDictionary alloc] init];
     }
     return _dictionaryOfInsertedRelationshipIDs;
 }
 
+-(NSString *)backupExtension {
 
-#pragma mark - Properties
-
--(NSString *)backupPrefix {
-    if ( !_backupPrefix ) {
-        _backupPrefix = @"backup";
+    if ( !_backupExtension ) {
+        _backupExtension = @"vtabackup";
     }
-    return _backupPrefix;
+    return _backupExtension;
 }
 
 -(NSURL *)backupDirectory {
+    
     if ( !_backupDirectory ) {
         _backupDirectory = [[[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] objectAtIndex:0] URLByAppendingPathComponent:@"backups" isDirectory:YES];
     }
     return _backupDirectory;
 }
 
--(NSDateFormatter *)dateFormatter {
-    if ( !_dateFormatter ) {
-        _dateFormatter = [[NSDateFormatter alloc] init];
-        _dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-        _dateFormatter.timeZone = [NSTimeZone localTimeZone];
-        // We DON'T want localised strings in this case
-        _dateFormatter.dateFormat = @"yyyy-MM-dd";
-    }
-    
-    return _dateFormatter;
-}
 -(NSArray *)backupList {
+    
     if ( !_backupList ) {
         _backupList = [self listBackups];
     }
     return _backupList;
 }
 
--(NSNumber *)daysToKeep {
-    if ( !_daysToKeep ) {
-        _daysToKeep = @(14);
-    }
-    return _daysToKeep;
-}
-
 -(NSNumber *) backupsToKeep {
+    
     if ( !_backupsToKeep ) {
         _backupsToKeep = @(5);
-        
     }
     return _backupsToKeep;
 }
 
 #pragma mark - Methods
 
-
--(NSString *)stringForDate:(NSDate *)date {
-    
-    // Currently, 9pm UTC
-    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-    calendar.timeZone = [NSTimeZone localTimeZone];
-    NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:date];
-    localComponents.calendar = calendar;
-    
-    NSString *dateString = [NSString stringWithFormat:@"%@-%@.%@", self.backupPrefix, [self.dateFormatter stringFromDate:[localComponents date]], VTABackupManagerFileExtenstion];
-#if debugLog
-    NSLog(@"%@", dateString);
-#endif
-    return dateString;
-}
-
-
 -(NSArray *)listBackups {
     
 #if debugLog
-    NSLog(@"Starting list update");
+    NSLog(@"Listing files at: %@", [self backupDirectory]);
 #endif
     
     NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
-    NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[self backupDirectory] path] error:nil] ;
+    NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[self backupDirectory] includingPropertiesForKeys:@[] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"pathExtension ENDSWITH '.vtabackup'"];
+    mutableBackups = [[backups filteredArrayUsingPredicate:predicate] mutableCopy];
+    mutableBackups = [backups mutableCopy];
     
 #if debugLog
     NSLog(@"List of backups: %@", backups);
 #endif
-    
-    mutableBackups = [backups mutableCopy];
-    
-    for ( NSString *path in backups ) {
-        if ( ![[path pathExtension] isEqualToString:VTABackupManagerFileExtenstion] ) {
-            [mutableBackups removeObject:path];
-        }
-    }
     
     [mutableBackups sortUsingComparator:^NSComparisonResult(id obj1, id obj2) {
         
         // if obj1 > obj2 return (NSComparisonResult)NSOrderedDescending;
         NSURL *file1URL = obj1;
         NSURL *file2URL = obj2;
-        NSString *file1Datestring = [[[file1URL lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%@-", self.backupPrefix] withString:@""];
-        NSString *file2Datestring = [[[file2URL lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%@-", self.backupPrefix] withString:@""];
-        NSDate *file1Date = [self.dateFormatter dateFromString:file1Datestring];
-        NSDate *file2Date = [self.dateFormatter dateFromString:file2Datestring];
-        
-        if ( [file1Date laterDate:file2Date] ) {
+        NSDictionary *file1Attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:[file1URL path] error:nil];
+        NSDictionary *file2Attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:[file2URL path] error:nil];
+        NSDate *file1CreationDate = file1Attributes[NSFileCreationDate];
+        NSDate *file2CreationDate = file2Attributes[NSFileCreationDate];
+        ;
+        if ( [file1CreationDate laterDate:file2CreationDate] ) {
             return NSOrderedDescending;
         }
         
-        if ( [file1Date earlierDate:file2Date] ) {
+        if ( [file1CreationDate earlierDate:file2CreationDate] ) {
             return NSOrderedAscending;
         }
-        
         return NSOrderedSame;
-        
-        NSDictionary *file1Atts = [[NSFileManager defaultManager] attributesOfItemAtPath:[[[self backupDirectory] URLByAppendingPathComponent:obj1] path] error:nil];
-        NSDictionary *file2Atts = [[NSFileManager defaultManager] attributesOfItemAtPath:[[[self backupDirectory] URLByAppendingPathComponent:obj2] path] error:nil];
-        
-        if ( [[file1Atts objectForKey:NSFileCreationDate] laterDate:[file2Atts objectForKey:NSFileCreationDate]]) {
-            return NSOrderedDescending;
-        }
-        
-        if ( [[file1Atts objectForKey:NSFileCreationDate] earlierDate:[file2Atts objectForKey:NSFileCreationDate]]) {
-            return NSOrderedDescending;
-        }
-        
-        return NSOrderedSame;
+
     }];
     
-    NSMutableArray *backupArray = [[NSMutableArray alloc] init];
-
-    for (NSString *path in mutableBackups) {
-        
-        NSString *backupPath = [[[path lastPathComponent] stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
-        NSDate *backupDate = [self.dateFormatter dateFromString:backupPath];
-        
-        if ( backupDate ) {
-            NSArray *backupObjects = @[path,backupDate,[self.backupDirectory URLByAppendingPathComponent:path]];
-            [backupArray addObject:backupObjects];
-        }
-        
+    NSMutableArray *mutableBackupArray = [NSMutableArray new];
+    
+    for ( NSURL *url in mutableBackups ) {
+        VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
+        [mutableBackupArray addObject:item];
     }
     
-    self.backupList = [backupArray copy];
-    return backupArray;
+    return [mutableBackupArray copy];
 }
 
 #pragma mark - Backup
@@ -205,10 +143,11 @@
                   recursive:(BOOL)recursive {
     
     // The URL for today's file
-    NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[self stringForDate:[NSDate date] ] ];
+    NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[VTABackupItem newFileNameWithExtension:self.backupExtension] ];
     
     // If we've already backed up today and we're not forcing an overwrite, we need go no further
     if ( !overwrite ) {
+        
         if ( [[NSFileManager defaultManager] fileExistsAtPath:[backupFileForToday path]  ]) {
 
 #if debugLog
@@ -217,6 +156,7 @@
             
             return;
         }
+        
     }
     
     // Perform some sanity checking to prevent crashes
@@ -243,11 +183,9 @@
         return;
     }
     
-    
     // Post notification that we will begin backing up
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessBackupsNotification object:self];
     [[NSNotificationCenter defaultCenter] postNotification:note];
-    
     
     // Create our private queue context
     NSManagedObjectContext *backgroundContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
@@ -307,6 +245,9 @@
         success = ( error ) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
+            
+            self.backupList = nil;
+            
             NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessBackupsNotification object:nil];
             [[NSNotificationCenter defaultCenter] postNotification:note];
             
@@ -334,11 +275,6 @@
     return YES;
 }
 
--(void)resetBackupList {
-    self.backupList = nil;
-}
-
-
 -(void)deleteOldBackups {
     
 #if debugLog
@@ -346,43 +282,25 @@
 #endif
     
     NSUInteger numberOfBackups = [self.backupsToKeep intValue];
+
     if ( [self.backupList count] < numberOfBackups ) {
         return;
     }
-    
 
+    if ( numberOfBackups == 0 ) return;
     
-    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-    calendar.timeZone = [NSTimeZone localTimeZone];
-    NSDateComponents *localComponents = [calendar components:(NSDayCalendarUnit )  fromDate:[NSDate date]];
-    localComponents.calendar = calendar;
-    [localComponents setDay:-[self.daysToKeep intValue]];
     
-    NSDate *twoWeeksAgo = [[NSCalendar currentCalendar] dateByAddingComponents:localComponents toDate:[NSDate date] options:0];
-    
+    NSArray *backupList = [self.backupList copy];
+    for ( NSUInteger i = 0; i < [backupList count]; i++ ) {
+        if ( i >= numberOfBackups ) {
+            VTABackupItem *item = [backupList objectAtIndex:i];
+
 #if debugLog
-    NSLog(@"Two weeks ago: %@", [self.dateFormatter stringFromDate:twoWeeksAgo]);
+            NSLog(@"Deleting file at: %@", item.fileURL);
 #endif
-    
-    NSUInteger i = 0;
-    
-    
-    for (NSArray *backupDetails in self.backupList ) {
-        i++;
-        if ( i <= numberOfBackups ) continue;
-        
-        NSDate *fileDate = [backupDetails objectAtIndex:VTABackupManagerBackupListIndexDate];
-        if ( [fileDate compare:twoWeeksAgo] == NSOrderedAscending ) {
-#if debugLog
-            NSLog(@"Deleting file at: %@", [backupDetails objectAtIndex:VTABackupManagerBackupListIndexPath]);
-#endif
-            NSError *error;
-            [[NSFileManager defaultManager] removeItemAtPath:[[[self backupDirectory] URLByAppendingPathComponent:[backupDetails objectAtIndex:VTABackupManagerBackupListIndexPath]] path] error:&error];
-            if ( error ) {
-#if debugLog
-                NSLog(@"%@", [error localizedDescription]);
-#endif
-            }
+            
+            [self deleteBackupAtURL:item.fileURL];
+            
         }
     }
 }
@@ -415,9 +333,11 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
         NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
         NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
+
 #if debugLog
         NSLog(@"%@", myDictionary);
 #endif
+        
         for (NSDictionary *objectDictionary in myDictionary ) {
             [self managedObjectFromStructure:objectDictionary withContext:privateContext];
         }
@@ -438,9 +358,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         });
         
     }];
-    
 }
-
 
 #pragma mark - Archiving the Managed Object
 
@@ -469,9 +387,6 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
     [valuesDictionary setObject:[[managedObject entity] name] forKey:VTABackupManagerManagedObjectNameKey];
     [valuesDictionary setObject:[[managedObject objectID] URIRepresentation] forKey:VTABackupManagerManagedObjectIDKey];
     
-
-    
-    
     if ( recursive ) {
         // Go through the relationships
         for (NSString *relationshipName in [relationshipsByName allKeys]) {
@@ -499,27 +414,23 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
             
         }
     }
+    
 #if debugLog
     NSLog(@"%@", valuesDictionary);
 #endif
+ 
     return valuesDictionary;
 }
 
-
-
 - (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context recursive:(BOOL)recursive {
+    
     NSString *objectName = [objectDictionary objectForKey:VTABackupManagerManagedObjectNameKey];
-
 
     NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
     [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectNameKey];
     [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectIDKey];
     NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:context];
     
-    
-
-    
-   
     // for each item in this dictionary
     for ( NSString *key in objectDictionary ) {
         // If there is any relationship information, this has to be removed
@@ -575,55 +486,19 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
                     [managedObject setValue:mutableSet forKey:key];
                 }
             }
-            
-            
+
             [structureDictionary removeObjectForKey:key];
+            
         }
     }
     
-    
-    
     [managedObject setValuesForKeysWithDictionary:structureDictionary];
-    
-
     
     return managedObject;
 }
 
-
-- (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context
-{
+- (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context {
     return [self managedObjectFromStructure:objectDictionary withContext:context recursive:YES];
 }
-//
-//- (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withManagedObjectContext:(NSManagedObjectContext*)moc
-//{
-//    NSString *objectName = [objectDictionary objectForKey:@"ManagedObjectName"];
-//    NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
-//    [structureDictionary removeObjectForKey:@"ManagedObjectName"];
-//    
-//    NSManagedObject *managedObject = [NSEntityDescription insertNewObjectForEntityForName:objectName inManagedObjectContext:moc];
-//    [managedObject setValuesForKeysWithDictionary:structureDictionary];
-//    
-//    for (NSString *relationshipName in [[[managedObject entity] relationshipsByName] allKeys]) {
-//        NSRelationshipDescription *description = [[[managedObject entity] relationshipsByName] objectForKey:relationshipName];
-//        if (![description isToMany]) {
-//            NSDictionary *childStructureDictionary = [structureDictionary objectForKey:relationshipName];
-//            NSManagedObject *childObject = [self managedObjectFromStructure:childStructureDictionary withManagedObjectContext:moc];
-//            [managedObject setValue:childObject forKey:relationshipName];
-//            continue;
-//        }
-//        NSMutableSet *relationshipSet = [managedObject mutableSetForKey:relationshipName];
-//        NSArray *relationshipArray = [structureDictionary objectForKey:relationshipName];
-//        for (NSDictionary *childStructureDictionary in relationshipArray) {
-//            NSManagedObject *childObject = [self managedObjectFromStructure:childStructureDictionary withManagedObjectContext:moc];
-//            [relationshipSet addObject:childObject];
-//        }
-//    }
-//    return managedObject;
-//}
-
-
-
 
 @end

@@ -16,6 +16,8 @@
 @property (nonatomic, strong) VTABackupManager *backupManager;
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *activityIndicator;
 
+@property (nonatomic, strong) NSDateFormatter *dateFormatter;
+
 @end
 
 @implementation VTABMBackupViewController
@@ -23,35 +25,22 @@
 #pragma mark - Properties
 
 -(VTABackupManager *)backupManager {
+
     if ( !_backupManager ) {
         _backupManager = [[VTABackupManager alloc] init];
     }
+    
     return _backupManager;
 }
 
-#pragma mark - Initialisation
-
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
-{
-    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
-    if (self) {
-        // Custom initialization
+-(NSDateFormatter *)dateFormatter {
+    
+    if ( !_dateFormatter ) {
+        _dateFormatter = [[NSDateFormatter alloc] init];
+        _dateFormatter.dateStyle = NSDateFormatterMediumStyle;
+        _dateFormatter.timeStyle = NSDateFormatterShortStyle;
     }
-    return self;
-}
-
-#pragma mark - View Lifecycle
-
-- (void)viewDidLoad
-{
-    [super viewDidLoad];
-	// Do any additional setup after loading the view.
-}
-
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+    return _dateFormatter;
 }
 
 #pragma mark - Actions
@@ -83,25 +72,35 @@
 }
 
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"backupCell"];
-
-    NSArray *array = [self.backupManager.backupList objectAtIndex:indexPath.row];
+    VTABackupItem *item = [self.backupManager.backupList objectAtIndex:indexPath.row];
     
-    cell.textLabel.text = [array objectAtIndex:VTABackupManagerBackupListIndexPath];
-    
+    cell.textLabel.text = [self.dateFormatter stringFromDate:item.creationDate];
+    cell.detailTextLabel.text = item.deviceName;
     return cell;
 }
 
 #pragma mark - UITableViewDelegate
 
--(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    [self.activityIndicator startAnimating];
-    NSArray *backup = [self.backupManager.backupList objectAtIndex:indexPath.row];
-    
-    [self.backupManager restoreFromURL:[backup objectAtIndex:VTABackupManagerBackupListIndexURL]
-                           intoContext:[[VTABMStore sharedStore] context]
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (editingStyle == UITableViewCellEditingStyleDelete) {
+        VTABackupItem *item = [self.backupManager.backupList objectAtIndex:indexPath.row];
+        [self.backupManager deleteBackupAtURL:item.fileURL];
+        [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
+    }
+}
 
+
+-(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    
+    [self.activityIndicator startAnimating];
+    VTABackupItem *backup = [self.backupManager.backupList objectAtIndex:indexPath.row];
+    
+    [self.backupManager restoreFromURL:backup.fileURL
+                           intoContext:[[VTABMStore sharedStore] context]
                withCompletitionHandler:^(BOOL success, NSError *error) {
+
         if ( error ) {
             
         } else {

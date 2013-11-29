@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="4510" systemVersion="12F37" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" initialViewController="Cys-ex-MUq">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="4514" systemVersion="13A603" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" initialViewController="Cys-ex-MUq">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="3742"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="3747"/>
     </dependencies>
     <scenes>
         <!--Backup View Controller-->
@@ -16,7 +16,7 @@
                         <rect key="frame" x="0.0" y="0.0" width="320" height="480"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                         <subviews>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="zJa-WP-dnM">
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="zJa-WP-dnM">
                                 <rect key="frame" x="20" y="76" width="140" height="30"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Delete Store">
@@ -26,7 +26,7 @@
                                     <action selector="deleteStore:" destination="mvp-mG-zK7" eventType="touchUpInside" id="qwE-yY-19e"/>
                                 </connections>
                             </button>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="0Fi-5Z-AaZ">
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="0Fi-5Z-AaZ">
                                 <rect key="frame" x="160" y="76" width="140" height="30"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Show Contents">
@@ -36,8 +36,8 @@
                                     <segue destination="0zz-9o-eRW" kind="push" id="Dl3-JL-FIc"/>
                                 </connections>
                             </button>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="5oC-h5-Qbt">
-                                <rect key="frame" x="20" y="114" width="200" height="30"/>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="5oC-h5-Qbt">
+                                <rect key="frame" x="20" y="114" width="140" height="30"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Backup Now">
                                     <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
@@ -46,17 +46,33 @@
                                     <action selector="startBackup:" destination="mvp-mG-zK7" eventType="touchUpInside" id="5VO-BD-QnX"/>
                                 </connections>
                             </button>
-                            <tableView clipsSubviews="YES" contentMode="scaleToFill" fixedFrame="YES" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="44" sectionHeaderHeight="22" sectionFooterHeight="22" translatesAutoresizingMaskIntoConstraints="NO" id="ZbC-V4-9iM">
+                            <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="44" sectionHeaderHeight="22" sectionFooterHeight="22" translatesAutoresizingMaskIntoConstraints="NO" id="ZbC-V4-9iM">
                                 <rect key="frame" x="0.0" y="152" width="320" height="328"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                                 <prototypes>
-                                    <tableViewCell contentMode="scaleToFill" selectionStyle="blue" hidesAccessoryWhenEditing="NO" indentationLevel="1" indentationWidth="0.0" reuseIdentifier="backupCell" id="3zq-9y-sDT">
+                                    <tableViewCell contentMode="scaleToFill" selectionStyle="blue" accessoryType="disclosureIndicator" hidesAccessoryWhenEditing="NO" indentationLevel="1" indentationWidth="0.0" reuseIdentifier="backupCell" textLabel="xrD-o9-IgR" detailTextLabel="a4n-oT-RWA" style="IBUITableViewCellStyleSubtitle" id="3zq-9y-sDT">
                                         <rect key="frame" x="0.0" y="22" width="320" height="44"/>
                                         <autoresizingMask key="autoresizingMask"/>
-                                        <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="3zq-9y-sDT">
-                                            <rect key="frame" x="0.0" y="0.0" width="320" height="43"/>
+                                        <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="3zq-9y-sDT" id="kRH-CN-ecX">
+                                            <rect key="frame" x="0.0" y="0.0" width="287" height="43"/>
                                             <autoresizingMask key="autoresizingMask"/>
+                                            <subviews>
+                                                <label opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="left" text="Title" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="xrD-o9-IgR">
+                                                    <rect key="frame" x="15" y="3" width="34" height="22"/>
+                                                    <autoresizingMask key="autoresizingMask"/>
+                                                    <fontDescription key="fontDescription" type="system" pointSize="18"/>
+                                                    <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
+                                                    <nil key="highlightedColor"/>
+                                                </label>
+                                                <label opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="left" text="Subtitle" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="a4n-oT-RWA">
+                                                    <rect key="frame" x="15" y="25" width="43" height="15"/>
+                                                    <autoresizingMask key="autoresizingMask"/>
+                                                    <fontDescription key="fontDescription" type="system" pointSize="12"/>
+                                                    <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
+                                                    <nil key="highlightedColor"/>
+                                                </label>
+                                            </subviews>
                                         </tableViewCellContentView>
                                     </tableViewCell>
                                 </prototypes>
@@ -65,12 +81,29 @@
                                     <outlet property="delegate" destination="mvp-mG-zK7" id="MBk-fy-M10"/>
                                 </connections>
                             </tableView>
-                            <activityIndicatorView hidden="YES" opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" fixedFrame="YES" hidesWhenStopped="YES" style="gray" translatesAutoresizingMaskIntoConstraints="NO" id="vKk-Bb-V1G">
-                                <rect key="frame" x="280" y="119" width="20" height="20"/>
+                            <activityIndicatorView hidden="YES" opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" hidesWhenStopped="YES" style="gray" translatesAutoresizingMaskIntoConstraints="NO" id="vKk-Bb-V1G">
+                                <rect key="frame" x="220" y="119" width="20" height="20"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                             </activityIndicatorView>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstItem="5oC-h5-Qbt" firstAttribute="top" secondItem="zJa-WP-dnM" secondAttribute="bottom" constant="8" id="5Dt-ur-E08"/>
+                            <constraint firstItem="ZbC-V4-9iM" firstAttribute="top" secondItem="5oC-h5-Qbt" secondAttribute="bottom" constant="8" id="6aH-dC-lnI"/>
+                            <constraint firstItem="5oC-h5-Qbt" firstAttribute="width" secondItem="zJa-WP-dnM" secondAttribute="width" id="83U-W3-Wuu"/>
+                            <constraint firstItem="0Fi-5Z-AaZ" firstAttribute="centerX" secondItem="vKk-Bb-V1G" secondAttribute="centerX" id="Ema-Lv-IpR"/>
+                            <constraint firstItem="zJa-WP-dnM" firstAttribute="top" secondItem="bMz-im-Rwp" secondAttribute="bottom" constant="12" id="FDK-lI-L66"/>
+                            <constraint firstItem="ZbC-V4-9iM" firstAttribute="leading" secondItem="hmQ-Yg-ZDK" secondAttribute="leading" id="J4W-Vu-tpj"/>
+                            <constraint firstAttribute="trailing" secondItem="ZbC-V4-9iM" secondAttribute="trailing" id="MiZ-t6-Et7"/>
+                            <constraint firstItem="5oC-h5-Qbt" firstAttribute="centerY" secondItem="vKk-Bb-V1G" secondAttribute="centerY" id="Mju-h6-yyI"/>
+                            <constraint firstItem="0Fi-5Z-AaZ" firstAttribute="width" secondItem="zJa-WP-dnM" secondAttribute="width" id="N0B-dE-lsJ"/>
+                            <constraint firstItem="u0T-oh-aoA" firstAttribute="top" secondItem="ZbC-V4-9iM" secondAttribute="bottom" id="VU8-bd-wrG"/>
+                            <constraint firstItem="0Fi-5Z-AaZ" firstAttribute="leading" secondItem="zJa-WP-dnM" secondAttribute="trailing" id="ZgL-6D-10m"/>
+                            <constraint firstItem="5oC-h5-Qbt" firstAttribute="leading" secondItem="zJa-WP-dnM" secondAttribute="leading" id="ej1-4T-HcF"/>
+                            <constraint firstItem="zJa-WP-dnM" firstAttribute="leading" secondItem="hmQ-Yg-ZDK" secondAttribute="leading" constant="20" id="mxM-yf-MCj"/>
+                            <constraint firstAttribute="trailing" secondItem="0Fi-5Z-AaZ" secondAttribute="trailing" constant="20" id="r7s-Dx-Jgf"/>
+                            <constraint firstItem="0Fi-5Z-AaZ" firstAttribute="top" secondItem="bMz-im-Rwp" secondAttribute="bottom" constant="12" id="tHZ-RL-xnh"/>
+                        </constraints>
                     </view>
                     <navigationItem key="navigationItem" id="A20-pR-UpX"/>
                     <connections>

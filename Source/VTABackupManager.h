@@ -22,15 +22,7 @@
 
 #import <Foundation/Foundation.h>
 #import <CoreData/CoreData.h>
-
-
-// Indexes for the information given in the backupList array
-// 
-enum VTABackupManagerBackupListIndex {
-    VTABackupManagerBackupListIndexPath = 0,
-    VTABackupManagerBackupListIndexDate = 1,
-    VTABackupManagerBackupListIndexURL = 2
-};
+#import "VTABackupItem.h"
 
 // Notifications
 #define VTABackupManagerWillProcessBackupsNotification @"VTABackupManagerWillProcessBackupsNotification"
@@ -39,45 +31,70 @@ enum VTABackupManagerBackupListIndex {
 #define VTABackupManagerWillProcessRestoreNotification @"VTABackupManagerWillProcessRestoreNotification"
 #define VTABackupManagerDidProcessRestoreNotification @"VTABackupManagerDidProcessRestoreNotification"
 
-
 @interface VTABackupManager : NSObject
 
-// How many days of backups should be kept? 0 is unlimited.
-@property (nonatomic, strong) NSNumber *daysToKeep;
-
-// How many total backups to keep. If there's a conflict between this and daysToKeep, this wins
+/**
+ *  How many total backups to keep.
+ */
 @property (nonatomic, strong) NSNumber *backupsToKeep;
 
-// directory to backup to, defaults to <Documents directory>/backups/
+/**
+ *  Directory to backup to, defaults to <Documents directory>/backups/
+ */
 @property (nonatomic, strong) NSURL *backupDirectory;
 
-// The format of the backup name is `<backupPrefix>-<year>-<month>-<day>.vtabackup`
-// The default backupPrefix is simply "backup"
-// The year, month and day strings are all based on the gregorian calendar
-@property (nonatomic, strong) NSString *backupPrefix;
+/**
+ *  The format of the backup name is `<device>--<UUID>.<backupExtenstion>`
+ *  The default extension is 'vtabackup'
+ *  The year, month and day strings are all based on the gregorian calendar
+ */
+@property (nonatomic, strong) NSString *backupExtension;
 
-// An array of URLs pointing to the backups
+/**
+ *  An array of VTABackupItems representing the backups
+ */
 @property (nonatomic, readonly) NSArray *backupList;
 
-// Run a backup with your own completition handler
-// Backups run on a separate, parallel context with a private queue (so off the main thread)
-// Completion blocks always run on the main thread.
-//
-// The method will pass a BOOL indicating whether or not the process was successful and
-// an error object indicating the error if there was one.
+/**
+ *  Run a backup with your own completition handler
+ *  Backups run on a separate, parallel context with a private queue (so off the main thread)
+ *  Completion blocks always run on the main thread.
+ *
+ *  The method will pass a BOOL indicating whether or not the process was successful and
+ *  an error object indicating the error if there was one.
+ *
+ *  @param name       The name of the entity to back up
+ *  @param context    An instance of NSManagedObjectContext
+ *  @param completion A handler that runs on completition
+ *  @param overwrite  Whether to force an overwrite of a file with the same name
+ */
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL success, NSError *error))completion
              forceOverwrite:(BOOL)overwrite;
 
-// If you don't want it to be recursive, use this method and set the recursive flag to NO
+/**
+ *  Backs up the given entity. If you don't want it to be recursive, use this method and set the recursive flag to NO
+ *
+ *  @param name       The name of the entity to back up
+ *  @param context    An instance of NSManagedObjectContext
+ *  @param completion A handler that runs on completition
+ *  @param overwrite  Whether to force an overwrite of a file with the same name
+ *  @param recursive  Whether to recursively back up entity relationships
+ */
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL success, NSError *error))completion
              forceOverwrite:(BOOL)overwrite
                   recursive:(BOOL)recursive;
 
-// Delete the backup at the given URL, YES if successful NO otherwise
+/**
+ *  Delete the backup at the given URL, YES if successful NO otherwise
+ *
+ *  @param URL The URL of the backup to delete
+ *
+ *  @return YES if successfully deleted, NO otherwise
+ */
 -(BOOL)deleteBackupAtURL:(NSURL *)URL;
 
 // Takes a backup path and attempts to restore the Core Data stack from it.
@@ -88,9 +105,6 @@ enum VTABackupManagerBackupListIndex {
 -(void)restoreFromURL:(NSURL *)URL
           intoContext:(NSManagedObjectContext *)context
 withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
-
-// Call this if you make any changes to the filesystem outside of the backup manager
--(void)resetBackupList;
 
 
 @end

@@ -24,7 +24,7 @@
 
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 
-#define debugLog 1
+#define debugLog 0
 
 @interface VTABackupManager ()
 
@@ -76,6 +76,7 @@
     }
     return _backupsToKeep;
 }
+
 
 #pragma mark - Methods
 
@@ -143,12 +144,12 @@
                   recursive:(BOOL)recursive {
     
     // The URL for today's file
-    NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[VTABackupItem newFileNameWithExtension:self.backupExtension] ];
+    NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[VTABackupItem newFileNameWithExtension:self.backupExtension]];
     
     // If we've already backed up today and we're not forcing an overwrite, we need go no further
     if ( !overwrite ) {
         
-        if ( [[NSFileManager defaultManager] fileExistsAtPath:[backupFileForToday path]  ]) {
+        if ( [[NSFileManager defaultManager] fileExistsAtPath:[backupFileForToday path]]) {
 
 #if debugLog
             NSLog(@"File exists, overwrite not set. No action to perform. Returning.");

@@ -8,14 +8,25 @@
 
 #import "VTABackupItem.h"
 
+#define VTABackupItemDeviceUUIDPrefKey @"VTABackupItemDeviceUUIDPrefKey"
+
+static NSDateFormatter *dateFormatter;
+static NSString *deviceUUID;
+
+@interface VTABackupItem ()
+
+@property (nonatomic, strong) NSString *fileDeviceUUID;
+
+@end
+
 @implementation VTABackupItem
 
 #pragma mark - Initialisation
 
 -(id)initWithFile:(NSURL *)file {
-
+    
     if ( self = [super init] ) {
-
+        
         _fileURL = file;
         if ( !_fileURL ) return nil;
         
@@ -26,12 +37,18 @@
         NSArray *arrayOfItems = [_fileName componentsSeparatedByString:@"--"];
         
         if ([arrayOfItems count] > 0) {
-            _deviceName = [arrayOfItems objectAtIndex:0];
+            _dateString = [arrayOfItems objectAtIndex:0];
         }
         if ([arrayOfItems count] > 1) {
-            _fileUUID = [arrayOfItems objectAtIndex:1];
+            _deviceName = [arrayOfItems objectAtIndex:1];
         }
-
+        if ([arrayOfItems count] > 2) {
+            _fileDeviceUUID = [arrayOfItems objectAtIndex:2];
+            if ( [_fileDeviceUUID isEqualToString:deviceUUID] ) {
+                _currentDevice = YES;
+            }
+        }
+        
     }
     
     return self;
@@ -42,7 +59,33 @@
 }
 
 +(NSString *)newFileNameWithExtension:(NSString *)extension {
-    return [NSString stringWithFormat:@"%@--%@.%@",[[UIDevice currentDevice] model], [[NSUUID UUID] UUIDString], extension];
+    
+    if ( !dateFormatter ) {
+        dateFormatter = [[NSDateFormatter alloc] init];
+        dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+        dateFormatter.timeZone = [NSTimeZone localTimeZone];
+        dateFormatter.dateFormat = @"yyyy-MM-dd";
+    }
+    
+    if ( !deviceUUID ) {
+
+        deviceUUID = [[NSUserDefaults standardUserDefaults] stringForKey:VTABackupItemDeviceUUIDPrefKey];
+        
+        if ( !deviceUUID ) {
+            NSString *newUUID = [[NSUUID UUID] UUIDString];
+            deviceUUID = newUUID;
+            [[NSUserDefaults standardUserDefaults] setObject:newUUID forKey:VTABackupItemDeviceUUIDPrefKey];
+        }
+    }
+    
+    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+    calendar.timeZone = [NSTimeZone localTimeZone];
+    NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:[NSDate date]];
+    localComponents.calendar = calendar;
+    
+    NSString *dateString = [NSString stringWithFormat:@"%@--%@--%@.%@", [dateFormatter stringFromDate:[localComponents date]], [[UIDevice currentDevice] model], deviceUUID, extension];
+    
+    return dateString;
 }
 
 @end

@@ -34,6 +34,7 @@
 		F45405F71802B08000F50C1D /* VTABMStore.m in Sources */ = {isa = PBXBuildFile; fileRef = F45405F61802B08000F50C1D /* VTABMStore.m */; };
 		F45406091802C72000F50C1D /* Toy.m in Sources */ = {isa = PBXBuildFile; fileRef = F45406081802C72000F50C1D /* Toy.m */; };
 		F454060C1802D36400F50C1D /* VTABMFetchedResultsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F454060B1802D36400F50C1D /* VTABMFetchedResultsTableViewController.m */; };
+		F4788CAF1848A43F005DB095 /* VTABackupItem.m in Sources */ = {isa = PBXBuildFile; fileRef = F4788CAE1848A43F005DB095 /* VTABackupItem.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -91,6 +92,8 @@
 		F45406081802C72000F50C1D /* Toy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = Toy.m; path = Model/Toy.m; sourceTree = "<group>"; };
 		F454060A1802D36400F50C1D /* VTABMFetchedResultsTableViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VTABMFetchedResultsTableViewController.h; path = Controller/VTABMFetchedResultsTableViewController.h; sourceTree = "<group>"; };
 		F454060B1802D36400F50C1D /* VTABMFetchedResultsTableViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = VTABMFetchedResultsTableViewController.m; path = Controller/VTABMFetchedResultsTableViewController.m; sourceTree = "<group>"; };
+		F4788CAD1848A43F005DB095 /* VTABackupItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VTABackupItem.h; sourceTree = "<group>"; };
+		F4788CAE1848A43F005DB095 /* VTABackupItem.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VTABackupItem.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,6 +125,8 @@
 			children = (
 				F4528C6B1804253400DFAA10 /* VTABackupManager.h */,
 				F4528C6C1804253400DFAA10 /* VTABackupManager.m */,
+				F4788CAD1848A43F005DB095 /* VTABackupItem.h */,
+				F4788CAE1848A43F005DB095 /* VTABackupItem.m */,
 			);
 			name = VTABackupManager;
 			path = ../../Source;
@@ -350,6 +355,7 @@
 				F4528C691804232500DFAA10 /* VTABMBackupViewController.m in Sources */,
 				F45405F11802ADF100F50C1D /* vtabm.xcdatamodeld in Sources */,
 				F454060C1802D36400F50C1D /* VTABMFetchedResultsTableViewController.m in Sources */,
+				F4788CAF1848A43F005DB095 /* VTABackupItem.m in Sources */,
 				F4528C5D1804075D00DFAA10 /* VTABMRequestStore.m in Sources */,
 				F45405F71802B08000F50C1D /* VTABMStore.m in Sources */,
 				F4528C541803F66700DFAA10 /* VTABMDetailViewController.m in Sources */,

@@ -16,6 +16,8 @@
 @property (nonatomic, strong) VTABackupManager *backupManager;
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *activityIndicator;
 
+@property (nonatomic, strong) NSDateFormatter *dateFormatter;
+
 @end
 
 @implementation VTABMBackupViewController
@@ -23,36 +25,22 @@
 #pragma mark - Properties
 
 -(VTABackupManager *)backupManager {
+
     if ( !_backupManager ) {
-        NSEntityDescription *cat = [NSEntityDescription entityForName:@"Cat" inManagedObjectContext:[VTABMStore sharedStore].context];
-        _backupManager = [[VTABackupManager alloc] initWithManagedObjectContext:[VTABMStore sharedStore].context entityToBackup:cat];
+        _backupManager = [[VTABackupManager alloc] init];
     }
+    
     return _backupManager;
 }
 
-#pragma mark - Initialisation
-
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
-{
-    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
-    if (self) {
-        // Custom initialization
+-(NSDateFormatter *)dateFormatter {
+    
+    if ( !_dateFormatter ) {
+        _dateFormatter = [[NSDateFormatter alloc] init];
+        _dateFormatter.dateStyle = NSDateFormatterMediumStyle;
+        _dateFormatter.timeStyle = NSDateFormatterShortStyle;
     }
-    return self;
-}
-
-#pragma mark - View Lifecycle
-
-- (void)viewDidLoad
-{
-    [super viewDidLoad];
-	// Do any additional setup after loading the view.
-}
-
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+    return _dateFormatter;
 }
 
 #pragma mark - Actions
@@ -62,7 +50,7 @@
     self.tableView.userInteractionEnabled = NO;
     [self.activityIndicator startAnimating];
     
-    [self.backupManager backupWithCompletionHandler:^(BOOL success, NSError *error) {
+    [self.backupManager backupEntityWithName:@"Cat" inContext:[[VTABMStore sharedStore] context] completionHandler:^(BOOL success, NSError *error) {
         if ( !error ) {
             UIAlertView *view = [[UIAlertView alloc] initWithTitle:@"Backup Complete" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
             [view show];
@@ -84,22 +72,35 @@
 }
 
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"backupCell"];
-
-    NSArray *array = [self.backupManager.backupList objectAtIndex:indexPath.row];
+    VTABackupItem *item = [self.backupManager.backupList objectAtIndex:indexPath.row];
     
-    cell.textLabel.text = [array objectAtIndex:VTABackupManagerBackupListIndexPath];
-    
+    cell.textLabel.text = [self.dateFormatter stringFromDate:item.creationDate];
+    cell.detailTextLabel.text = item.deviceName;
     return cell;
 }
 
 #pragma mark - UITableViewDelegate
 
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (editingStyle == UITableViewCellEditingStyleDelete) {
+        VTABackupItem *item = [self.backupManager.backupList objectAtIndex:indexPath.row];
+        [self.backupManager deleteBackupAtURL:item.fileURL];
+        [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
+    }
+}
+
+
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    
     [self.activityIndicator startAnimating];
-    NSArray *backup = [self.backupManager.backupList objectAtIndex:indexPath.row];
-    [self.backupManager restoreFromURL:[backup objectAtIndex:VTABackupManagerBackupListIndexURL] withCompletitionHandler:^(BOOL success, NSError *error) {
-        
+    VTABackupItem *backup = [self.backupManager.backupList objectAtIndex:indexPath.row];
+    
+    [self.backupManager restoreFromURL:backup.fileURL
+                           intoContext:[[VTABMStore sharedStore] context]
+               withCompletitionHandler:^(BOOL success, NSError *error) {
+
         if ( error ) {
             
         } else {
@@ -108,8 +109,9 @@
             [self.activityIndicator stopAnimating];
             
         }
-        
+
     }];
+
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 

@@ -24,7 +24,7 @@
 
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 
-#define debugLog 1
+#define debugLog 0
 
 @interface VTABackupManager ()
 
@@ -100,8 +100,6 @@
     NSPredicate *predicate = [NSPredicate predicateWithFormat:@"pathExtension ENDSWITH '.%@'", self.backupExtension];
     [backups filteredArrayUsingPredicate:predicate];
     mutableBackups = [backups mutableCopy];
-    
-
     
     NSMutableArray *mutableBackupArray = [NSMutableArray new];
     for ( NSURL *url in mutableBackups ) {

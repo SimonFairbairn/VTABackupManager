@@ -24,7 +24,7 @@
 
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 
-#define debugLog 0
+#define debugLog 1
 
 @interface VTABackupManager ()
 
@@ -77,6 +77,14 @@
     return _backupsToKeep;
 }
 
+#pragma mark - Initialisation
+
++ (instancetype)sharedManager {
+    static dispatch_once_t predicate;
+    static VTABackupManager *instance = nil;
+    dispatch_once(&predicate, ^{instance = [[self alloc] init];});
+    return instance;
+}
 
 #pragma mark - Methods
 
@@ -89,43 +97,31 @@
     NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
     NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[self backupDirectory] includingPropertiesForKeys:@[] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
     
-    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"pathExtension ENDSWITH '.vtabackup'"];
-    mutableBackups = [[backups filteredArrayUsingPredicate:predicate] mutableCopy];
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"pathExtension ENDSWITH '.%@'", self.backupExtension];
+    [backups filteredArrayUsingPredicate:predicate];
     mutableBackups = [backups mutableCopy];
     
-#if debugLog
-    NSLog(@"List of backups: %@", backups);
-#endif
-    
-    [mutableBackups sortUsingComparator:^NSComparisonResult(id obj1, id obj2) {
-        
-        // if obj1 > obj2 return (NSComparisonResult)NSOrderedDescending;
-        NSURL *file1URL = obj1;
-        NSURL *file2URL = obj2;
-        NSDictionary *file1Attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:[file1URL path] error:nil];
-        NSDictionary *file2Attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:[file2URL path] error:nil];
-        NSDate *file1CreationDate = file1Attributes[NSFileCreationDate];
-        NSDate *file2CreationDate = file2Attributes[NSFileCreationDate];
-        ;
-        if ( [file1CreationDate laterDate:file2CreationDate] ) {
-            return NSOrderedDescending;
-        }
-        
-        if ( [file1CreationDate earlierDate:file2CreationDate] ) {
-            return NSOrderedAscending;
-        }
-        return NSOrderedSame;
 
-    }];
     
     NSMutableArray *mutableBackupArray = [NSMutableArray new];
-    
     for ( NSURL *url in mutableBackups ) {
-        VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
-        [mutableBackupArray addObject:item];
+        if ( [[url path] rangeOfString:@"toDelete"].location == NSNotFound ) {
+            VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
+            [mutableBackupArray addObject:item];
+        }
     }
     
-    return [mutableBackupArray copy];
+    NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
+
+#if debugLog
+    NSLog(@"Full List: %@", backups);
+    NSLog(@"Filtered List: %@", mutableBackupArray);
+#endif
+    return [mutableBackupArray sortedArrayUsingDescriptors:@[dateStringSortDescriptor]];
+}
+
+-(void)reloadDirectory {
+    self.backupList = nil;
 }
 
 #pragma mark - Backup
@@ -145,6 +141,8 @@
     
     // The URL for today's file
     NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[VTABackupItem newFileNameWithExtension:self.backupExtension]];
+    
+    NSLog(@"Backup file for today: %@", backupFileForToday);
     
     // If we've already backed up today and we're not forcing an overwrite, we need go no further
     if ( !overwrite ) {
@@ -279,7 +277,7 @@
 -(void)deleteOldBackups {
     
 #if debugLog
-    NSLog(@"List of backups: %@", self.backupList);
+    NSLog(@"List of backups before delete: %@", self.backupList);
 #endif
     
     NSUInteger numberOfBackups = [self.backupsToKeep intValue];
@@ -304,6 +302,14 @@
             
         }
     }
+
+    // Reset list
+    self.backupList = nil;
+    
+#if debugLog
+    NSLog(@"List of backups before delete: %@", self.backupList);
+#endif
+    
 }
 
 #pragma mark - Restore

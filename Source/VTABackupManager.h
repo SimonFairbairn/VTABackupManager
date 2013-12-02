@@ -55,6 +55,8 @@
  */
 @property (nonatomic, readonly) NSArray *backupList;
 
++(instancetype)sharedManager;
+
 /**
  *  Run a backup with your own completition handler
  *  Backups run on a separate, parallel context with a private queue (so off the main thread)
@@ -105,6 +107,8 @@
 -(void)restoreFromURL:(NSURL *)URL
           intoContext:(NSManagedObjectContext *)context
 withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
+
+-(void)reloadDirectory;
 
 
 @end

@@ -21,6 +21,11 @@
 @property (nonatomic, readonly) NSString *fileName;
 
 /**
+ *  The name of the file with the extension
+ */
+@property (nonatomic, readonly) NSString *filePath;
+
+/**
  *  The URL of the file on the filesystem
  */
 @property (nonatomic, readonly) NSURL *fileURL;
@@ -36,6 +41,11 @@
 @property (nonatomic, strong) NSString *dateString;
 
 /**
+ *  A date string localized to the country where the backup was initiated.
+ */
+@property (nonatomic, strong) NSDate *dateStringAsDate;
+
+/**
  *  The UUID of the file (useful for finding out whether it's from the current device or not)
  */
 @property (nonatomic, readonly) NSString *fileUUID;
@@ -43,10 +53,12 @@
 /**
  *  A property that lets us know whether or not this item came from the current device
  */
-@property (nonatomic, getter = isCurrentDevice) BOOL currentDevice;
+@property (nonatomic, getter = isCurrentDevice, readonly) BOOL currentDevice;
 
 -(id)initWithFile:(NSURL *)file;
 
 +(NSString *)newFileNameWithExtension:(NSString *)extension;
+
++(NSString *)deviceUUID;
 
 @end

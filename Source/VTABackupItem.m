@@ -27,24 +27,37 @@ static NSString *deviceUUID;
     
     if ( self = [super init] ) {
         
+        if ( !dateFormatter ) {
+            dateFormatter = [[NSDateFormatter alloc] init];
+            dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+            dateFormatter.timeZone = [NSTimeZone localTimeZone];
+            dateFormatter.dateFormat = @"yyyy-MM-dd";
+        }
+        
         _fileURL = file;
         if ( !_fileURL ) return nil;
         
         NSDictionary *dictionary = [[NSFileManager defaultManager] attributesOfItemAtPath:[file path] error:nil];
         _creationDate = dictionary[NSFileCreationDate];
+        _filePath = [[file path] lastPathComponent];
         _fileName = [[[file path] lastPathComponent] stringByDeletingPathExtension];
         
         NSArray *arrayOfItems = [_fileName componentsSeparatedByString:@"--"];
-        
+
         if ([arrayOfItems count] > 0) {
-            _dateString = [arrayOfItems objectAtIndex:0];
+            _dateString = [[arrayOfItems objectAtIndex:0] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
+            _dateStringAsDate = [dateFormatter dateFromString:_dateString];
         }
         if ([arrayOfItems count] > 1) {
             _deviceName = [arrayOfItems objectAtIndex:1];
         }
-        if ([arrayOfItems count] > 2) {
+        if ([arrayOfItems count] > 2 ) {
             _fileDeviceUUID = [arrayOfItems objectAtIndex:2];
-            if ( [_fileDeviceUUID isEqualToString:deviceUUID] ) {
+            
+            NSLog(@"File UUID: %@", _fileDeviceUUID);
+            NSLog(@"Device UUID: %@", [VTABackupItem deviceUUID]);
+            
+            if ( [_fileDeviceUUID isEqualToString:[VTABackupItem deviceUUID]] ) {
                 _currentDevice = YES;
             }
         }
@@ -59,16 +72,19 @@ static NSString *deviceUUID;
 }
 
 +(NSString *)newFileNameWithExtension:(NSString *)extension {
+    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+    calendar.timeZone = [NSTimeZone localTimeZone];
+    NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:[NSDate date]];
+    localComponents.calendar = calendar;
     
-    if ( !dateFormatter ) {
-        dateFormatter = [[NSDateFormatter alloc] init];
-        dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-        dateFormatter.timeZone = [NSTimeZone localTimeZone];
-        dateFormatter.dateFormat = @"yyyy-MM-dd";
-    }
+    NSString *dateString = [NSString stringWithFormat:@"%@--%@--%@.%@", [dateFormatter stringFromDate:[localComponents date]], [[UIDevice currentDevice] model], [VTABackupItem deviceUUID], extension];
     
-    if ( !deviceUUID ) {
+    return dateString;
+}
 
++(NSString *)deviceUUID {
+
+    if ( !deviceUUID ) {
         deviceUUID = [[NSUserDefaults standardUserDefaults] stringForKey:VTABackupItemDeviceUUIDPrefKey];
         
         if ( !deviceUUID ) {
@@ -77,15 +93,11 @@ static NSString *deviceUUID;
             [[NSUserDefaults standardUserDefaults] setObject:newUUID forKey:VTABackupItemDeviceUUIDPrefKey];
         }
     }
-    
-    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
-    calendar.timeZone = [NSTimeZone localTimeZone];
-    NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:[NSDate date]];
-    localComponents.calendar = calendar;
-    
-    NSString *dateString = [NSString stringWithFormat:@"%@--%@--%@.%@", [dateFormatter stringFromDate:[localComponents date]], [[UIDevice currentDevice] model], deviceUUID, extension];
-    
-    return dateString;
+    return deviceUUID;
+}
+
+-(NSString *)description {
+    return self.filePath;
 }
 
 @end

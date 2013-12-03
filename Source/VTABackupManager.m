@@ -24,7 +24,7 @@
 
 #define VTABackupManagerErrorDomain @"VTA Backup Manager"
 
-#define debugLog 0
+#define VTABackupManagerDebugLog 0
 
 @interface VTABackupManager ()
 
@@ -90,7 +90,7 @@
 
 -(NSArray *)listBackups {
     
-#if debugLog
+#if VTABackupManagerDebugLog
     NSLog(@"Listing files at: %@", [self backupDirectory]);
 #endif
     
@@ -111,7 +111,7 @@
     
     NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
 
-#if debugLog
+#if VTABackupManagerDebugLog
     NSLog(@"Full List: %@", backups);
     NSLog(@"Filtered List: %@", mutableBackupArray);
 #endif
@@ -147,7 +147,7 @@
         
         if ( [[NSFileManager defaultManager] fileExistsAtPath:[backupFileForToday path]]) {
 
-#if debugLog
+#if VTABackupManagerDebugLog
             NSLog(@"File exists, overwrite not set. No action to perform. Returning.");
 #endif
             
@@ -190,7 +190,7 @@
     
     [backgroundContext performBlock:^{
         
-#if debugLog
+#if VTABackupManagerDebugLog
         sleep(3);
 #endif
         
@@ -202,7 +202,7 @@
 
         if ( error ) {
             
-#if debugLog
+#if VTABackupManagerDebugLog
             NSLog(@"Error creating directory: %@", [error localizedDescription]);
 #endif
             
@@ -217,7 +217,7 @@
         NSFetchRequest *request = [[NSFetchRequest alloc] initWithEntityName:entity.name];
         NSArray *results = [context executeFetchRequest:request error:&error];
         
-#if debugLog
+#if VTABackupManagerDebugLog
         NSLog(@"Objects for entity: %@", results);
 #endif
         // Time to archive the results
@@ -260,7 +260,7 @@
     NSError *error;
     [[NSFileManager defaultManager] removeItemAtURL:URL error:&error];
     if ( error ) {
-#if debugLog
+#if VTABackupManagerDebugLog
         NSLog(@"%@", [error localizedDescription]);
 #endif
         
@@ -274,7 +274,7 @@
 
 -(void)deleteOldBackups {
     
-#if debugLog
+#if VTABackupManagerDebugLog
     NSLog(@"List of backups before delete: %@", self.backupList);
 #endif
     
@@ -292,7 +292,7 @@
         if ( i >= numberOfBackups ) {
             VTABackupItem *item = [backupList objectAtIndex:i];
 
-#if debugLog
+#if VTABackupManagerDebugLog
             NSLog(@"Deleting file at: %@", item.fileURL);
 #endif
             
@@ -304,7 +304,7 @@
     // Reset list
     self.backupList = nil;
     
-#if debugLog
+#if VTABackupManagerDebugLog
     NSLog(@"List of backups before delete: %@", self.backupList);
 #endif
     
@@ -339,7 +339,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
         NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
 
-#if debugLog
+#if VTABackupManagerDebugLog
         NSLog(@"%@", myDictionary);
 #endif
         
@@ -420,7 +420,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         }
     }
     
-#if debugLog
+#if VTABackupManagerDebugLog
     NSLog(@"%@", valuesDictionary);
 #endif
  
@@ -467,7 +467,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
             // We have an array of items
             if ( recursive ) {
                 NSMutableSet *mutableSet = [[NSMutableSet alloc] init];
-#if debugLog
+#if VTABackupManagerDebugLog
                 NSLog(@"%@", [structureDictionary objectForKey:key]);
 #endif
                 for ( NSDictionary *detailDictionary in [structureDictionary objectForKey:key]) {

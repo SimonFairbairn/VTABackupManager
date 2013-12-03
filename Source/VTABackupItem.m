@@ -72,6 +72,13 @@ static NSString *deviceUUID;
 
 +(NSString *)newFileNameWithExtension:(NSString *)extension {
     
+    if ( !dateFormatter ) {
+        dateFormatter = [[NSDateFormatter alloc] init];
+        dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+        dateFormatter.timeZone = [NSTimeZone localTimeZone];
+        dateFormatter.dateFormat = @"yyyy-MM-dd";
+    }
+    
     NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
     calendar.timeZone = [NSTimeZone localTimeZone];
     NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:[NSDate date]];

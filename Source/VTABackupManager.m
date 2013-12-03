@@ -31,6 +31,8 @@
 @property (nonatomic, readwrite) NSArray *backupList;
 @property (nonatomic, strong) NSMutableDictionary *dictionaryOfInsertedRelationshipIDs;
 
+@property (nonatomic, readwrite, getter = isRunning) BOOL running;
+
 @end
 
 @implementation VTABackupManager
@@ -180,6 +182,8 @@
         return;
     }
     
+    self.running = YES;
+    
     // Post notification that we will begin backing up
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessBackupsNotification object:self];
     [[NSNotificationCenter defaultCenter] postNotification:note];
@@ -242,6 +246,8 @@
         success = ( error ) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
+
+            self.running = NO;
             
             self.backupList = nil;
             
@@ -324,6 +330,8 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         return;
     }
     
+    self.running = YES;
+    
     // Post notification that we will begin restoring
     NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessRestoreNotification object:self];
     [[NSNotificationCenter defaultCenter] postNotification:note];
@@ -355,6 +363,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         
         dispatch_async(dispatch_get_main_queue(), ^{
             
+            self.running = NO;
             
             NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessRestoreNotification object:self];
             [[NSNotificationCenter defaultCenter] postNotification:note

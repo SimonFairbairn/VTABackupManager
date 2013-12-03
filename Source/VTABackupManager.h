@@ -55,6 +55,17 @@
  */
 @property (nonatomic, readonly) NSArray *backupList;
 
+/**
+ *  Indicates whether the backup manager is running or not
+ */
+@property (nonatomic, readonly, getter = isRunning) BOOL running;
+
+
+/**
+ *  Gets the shared instance
+ *
+ *  @return A shared instance of VTABackupManager
+ */
 +(instancetype)sharedManager;
 
 /**
@@ -108,6 +119,10 @@
           intoContext:(NSManagedObjectContext *)context
 withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
 
+
+/**
+ *  Forces the reload of the backupList array.
+ */
 -(void)reloadDirectory;
 
 

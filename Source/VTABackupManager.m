@@ -166,9 +166,8 @@
         return;
     }
     
-    NSEntityDescription *entity = [NSEntityDescription entityForName:name inManagedObjectContext:context];
     
-    if ( !entity ) {
+    if ( !name ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No entity given to backup. Did you forget to set the entity name?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
         completion(NO, error);
@@ -193,6 +192,8 @@
     backgroundContext.persistentStoreCoordinator = context.persistentStoreCoordinator;
     
     [backgroundContext performBlock:^{
+        
+        NSEntityDescription *entity = [NSEntityDescription entityForName:name inManagedObjectContext:backgroundContext];
         
 #if VTABackupManagerDebugLog
         sleep(3);
@@ -219,7 +220,7 @@
         
         // Let's get everything from database for the given entity
         NSFetchRequest *request = [[NSFetchRequest alloc] initWithEntityName:entity.name];
-        NSArray *results = [context executeFetchRequest:request error:&error];
+        NSArray *results = [backgroundContext executeFetchRequest:request error:&error];
         
 #if VTABackupManagerDebugLog
         NSLog(@"Objects for entity: %@", results);

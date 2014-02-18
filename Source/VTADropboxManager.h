@@ -6,28 +6,21 @@
 //  Copyright (c) 2013 Voyage Travel Apps. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
-#import "Reachability.h"
+#import <Dropbox/Dropbox.h>
 
-#define VTADropboxManagerWillStartSyncNotification @"VTADropboxManagerWillStartSyncNotification"
-#define VTADropboxManagerDidFinishSyncNotification @"VTADropboxManagerDidFinishSyncNotification"
+#import "VTABackupManager.h"
+#import "Reachability.h"
 
 /**
  *  Manages syncing between Dropbox and the VTABackupManager.
  *  Syncing is based on the date of the file creation
  */
-@interface VTADropboxManager : NSObject
+@interface VTADropboxManager : VTABackupManager
 
 /**
- *  Is Dropbox hooked up for this user?
+ *  A convenient shortcut to the DBAccountManager
  */
-@property (nonatomic, readonly, getter = isDropboxEnabled) BOOL dropboxEnabled;
-
-
-/**
- *  Are we reachable?
- */
-@property (nonatomic, strong) Reachability *hostReachability;
+@property (nonatomic, strong) DBAccountManager *dropboxManager;
 
 /**
  *  Set if the class is in the process of sycning
@@ -40,24 +33,9 @@
 @property (nonatomic, getter = shouldUseCellular) BOOL useCellular;
 
 /**
- *  Accessor for the singleton
- *
- *  @return An instance of a VTADropboxManager
+ *  A property indicating whether or not cellular data should be used for syncing
  */
-+(instancetype)sharedManager;
+@property (nonatomic, getter = isDropboxAvailable) BOOL dropboxAvailable;
 
-/**
- *  Start the sync process
- */
--(void)sync;
-
-/**
- *  Forwarding method
- *
- *  @param url The URL of the local file
- */
--(void)deleteBackupAtURL:(NSURL *)url;
-
--(void)updateStatus;
 
 @end

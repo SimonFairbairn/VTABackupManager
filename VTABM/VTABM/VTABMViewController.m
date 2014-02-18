@@ -41,30 +41,18 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-
-	// Do any additional setup after loading the view, typically from a nib.
-
     self.toolbarItems = @[self.editButtonItem];
-    
 }
 
 -(void)viewWillAppear:(BOOL)animated {
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateTable:) name:VTABMStoreStoreDidChangeNotifcation object:nil];
+    [super viewWillAppear:animated];
     self.navigationController.toolbarHidden = NO;
 }
 
--(void)viewWillLayoutSubviews {
-    
-}
-
 -(void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     self.navigationController.toolbarHidden = YES;
-}
-
--(void)updateTable:(NSNotification *)note {
-//    [self.tableView reloadData];
-
 }
 
 - (void)didReceiveMemoryWarning
@@ -121,7 +109,6 @@
                     [view show];
                 } else {
                     [[VTABMImageStore sharedStore] setImage:image forKey:filename];
-                    NSLog(@"%@", filename);
                     cat.imageKey = filename;
                     [cat setThumbnailDataFromImage:image];
                     

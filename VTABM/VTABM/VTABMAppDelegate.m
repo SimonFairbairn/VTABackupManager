@@ -9,13 +9,14 @@
 
 #import "VTABMAppDelegate.h"
 #import "VTABMStore.h"
-
+#import "VTADropboxManager.h"
 
 @implementation VTABMAppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
     // Override point for customization after application launch.
+    
     return YES;
 }
 							
@@ -35,6 +36,11 @@
     if ( saveError ) {
         [NSException raise:@"Couldn't Save Toys" format:@"Reason: %@", [saveError localizedDescription]];
     }
+}
+
+-(BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url {
+    [[VTADropboxManager sharedManager].dropboxManager handleOpenURL:url];
+    return NO;
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application

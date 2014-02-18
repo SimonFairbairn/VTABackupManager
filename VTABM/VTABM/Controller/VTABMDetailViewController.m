@@ -24,8 +24,7 @@
 
 @implementation VTABMDetailViewController
 
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
-{
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
     self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
     if (self) {
         // Custom initialization
@@ -33,8 +32,7 @@
     return self;
 }
 
-- (void)viewDidLoad
-{
+- (void)viewDidLoad {
     [super viewDidLoad];
 	// Do any additional setup after loading the view.
     
@@ -44,17 +42,9 @@
     
     self.catImage.image = [[VTABMImageStore sharedStore] imageForKey:[self.cat.imageURL lastPathComponent]];
     
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(imageUpdated:) name:NSManagedObjectContextDidSaveNotification object:self.cat.managedObjectContext];
 }
 
--(void)viewWillLayoutSubviews {
-    
-}
-
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
-}
 
 -(IBAction)loadAttribution:(id)sender {
     
@@ -64,6 +54,10 @@
     [wvc.webView loadRequest:[NSURLRequest requestWithURL:url]];
     
     [self.navigationController pushViewController:wvc animated:YES];
+}
+
+-(void)imageUpdated:(NSNotification *)note {
+    self.catImage.image = [[VTABMImageStore sharedStore] imageForKey:[self.cat.imageURL lastPathComponent]];
 }
 
 @end

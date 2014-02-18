@@ -22,14 +22,15 @@
 
 #import "VTABackupManager.h"
 
-#define VTABackupManagerErrorDomain @"VTA Backup Manager"
-
-#define VTABackupManagerDebugLog 0
+#define VTABackupManagerDebugLog 1
 
 @interface VTABackupManager ()
 
-@property (nonatomic, readwrite) NSArray *backupList;
+@property (nonatomic, readwrite) NSMutableArray *backupList;
 @property (nonatomic, strong) NSMutableDictionary *dictionaryOfInsertedRelationshipIDs;
+
+@property (nonatomic, strong) NSString *backupExtension;
+@property (nonatomic, strong) NSURL *backupDirectory;
 
 @property (nonatomic, readwrite, getter = isRunning) BOOL running;
 
@@ -48,7 +49,7 @@
 }
 
 -(NSString *)backupExtension {
-
+    
     if ( !_backupExtension ) {
         _backupExtension = @"vtabackup";
     }
@@ -63,7 +64,7 @@
     return _backupDirectory;
 }
 
--(NSArray *)backupList {
+-(NSMutableArray *)backupList {
     
     if ( !_backupList ) {
         _backupList = [self listBackups];
@@ -90,7 +91,7 @@
 
 #pragma mark - Methods
 
--(NSArray *)listBackups {
+-(NSMutableArray *)listBackups {
     
 #if VTABackupManagerDebugLog
     NSLog(@"Listing files at: %@", [self backupDirectory]);
@@ -105,39 +106,45 @@
     
     NSMutableArray *mutableBackupArray = [NSMutableArray new];
     for ( NSURL *url in mutableBackups ) {
-        if ( [[url path] rangeOfString:@"toDelete"].location == NSNotFound ) {
-            VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
-            [mutableBackupArray addObject:item];
-        }
+        VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
+        [mutableBackupArray addObject:item];
     }
     
     NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
-
+    
 #if VTABackupManagerDebugLog
     NSLog(@"Full List: %@", backups);
     NSLog(@"Filtered List: %@", mutableBackupArray);
 #endif
-    return [mutableBackupArray sortedArrayUsingDescriptors:@[dateStringSortDescriptor]];
+    return [[mutableBackupArray sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
 }
 
--(void)reloadDirectory {
-    self.backupList = nil;
+-(BOOL)deleteBackupItem:(VTABackupItem *)item {
+    NSError *error;
+    [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
+    if ( error ) {
+#if VTABackupManagerDebugLog
+        NSLog(@"%@", [error localizedDescription]);
+#endif
+        
+        return NO;
+    } else {
+        // Destroy and recreate the list
+        [self.backupList removeObject:item];
+    }
+    return YES;
 }
 
 #pragma mark - Backup
+
 
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL, NSError *))completion
              forceOverwrite:(BOOL)overwrite {
-    [self backupEntityWithName:name inContext:context completionHandler:completion forceOverwrite:overwrite recursive:YES];
-}
-
--(void)backupEntityWithName:(NSString *)name
-                  inContext:(NSManagedObjectContext *)context
-          completionHandler:(void (^)(BOOL, NSError *))completion
-             forceOverwrite:(BOOL)overwrite
-                  recursive:(BOOL)recursive {
+    
+    // Create backup item.
+    
     
     // The URL for today's file
     NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[VTABackupItem newFileNameWithExtension:self.backupExtension]];
@@ -148,7 +155,7 @@
     if ( !overwrite ) {
         
         if ( [[NSFileManager defaultManager] fileExistsAtPath:[backupFileForToday path]]) {
-
+            
 #if VTABackupManagerDebugLog
             NSLog(@"File exists, overwrite not set. No action to perform. Returning.");
 #endif
@@ -183,9 +190,6 @@
     
     self.running = YES;
     
-    // Post notification that we will begin backing up
-    NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessBackupsNotification object:self];
-    [[NSNotificationCenter defaultCenter] postNotification:note];
     
     // Create our private queue context
     NSManagedObjectContext *backgroundContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
@@ -204,7 +208,7 @@
         
         // First, we need to create the directory
         [[NSFileManager defaultManager] createDirectoryAtPath:[self.backupDirectory path] withIntermediateDirectories:YES attributes:nil error:&error ];
-
+        
         if ( error ) {
             
 #if VTABackupManagerDebugLog
@@ -216,7 +220,7 @@
         // Delete any remaining backups, unless the old backups to delete is set to 0 or below
         [self deleteOldBackups];
         
-#define VTAEncoderKey @"VTAEncoderKey"
+        
         
         // Let's get everything from database for the given entity
         NSFetchRequest *request = [[NSFetchRequest alloc] initWithEntityName:entity.name];
@@ -226,7 +230,7 @@
         NSLog(@"Objects for entity: %@", results);
 #endif
         // Time to archive the results
-        NSArray *dictionary = [self dataFromArrayOfManagedObjects:results Recursive:recursive];
+        NSArray *dictionary = [self dataFromArrayOfManagedObjects:results Recursive:YES];
         NSMutableData * data = [[NSMutableData alloc] init];
         NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:data];
         [archiver encodeObject:dictionary forKey:VTAEncoderKey];
@@ -236,47 +240,21 @@
             NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error writing to file."};
             error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
         }
-        //
-        //        if ( [dictionary writeToFile:[backupFileForToday path] atomically:YES] ) {
-        //            NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Failed to archive the plist. This could indicate an error with the data within the plist, or you have specified a backup directory that is inaccessible."};
-        //            error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
-        //        }
+        
         
         
         // If error is set, we weren't successful
         success = ( error ) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
-
             self.running = NO;
-            
             self.backupList = nil;
-            
-            NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessBackupsNotification object:nil];
-            [[NSNotificationCenter defaultCenter] postNotification:note];
-            
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
             completion(success, error);
         });
         
     }];
     
-    
-}
-
--(BOOL)deleteBackupAtURL:(NSURL *)URL {
-    NSError *error;
-    [[NSFileManager defaultManager] removeItemAtURL:URL error:&error];
-    if ( error ) {
-#if VTABackupManagerDebugLog
-        NSLog(@"%@", [error localizedDescription]);
-#endif
-        
-        return NO;
-    } else {
-        // Destroy and recreate the list
-        self.backupList = nil;
-    }
-    return YES;
 }
 
 -(void)deleteOldBackups {
@@ -286,11 +264,11 @@
 #endif
     
     NSUInteger numberOfBackups = [self.backupsToKeep intValue];
-
+    
     if ( [self.backupList count] < numberOfBackups ) {
         return;
     }
-
+    
     if ( numberOfBackups == 0 ) return;
     
     
@@ -298,18 +276,13 @@
     for ( NSUInteger i = 0; i < [backupList count]; i++ ) {
         if ( i >= numberOfBackups ) {
             VTABackupItem *item = [backupList objectAtIndex:i];
-
 #if VTABackupManagerDebugLog
             NSLog(@"Deleting file at: %@", item.fileURL);
 #endif
-            
-            [self deleteBackupAtURL:item.fileURL];
-            
+            [self deleteBackupItem:item];
         }
     }
-
-    // Reset list
-    self.backupList = nil;
+    
     
 #if VTABackupManagerDebugLog
     NSLog(@"List of backups before delete: %@", self.backupList);
@@ -319,10 +292,10 @@
 
 #pragma mark - Restore
 
--(void)restoreFromURL:(NSURL *)URL
-          intoContext:(NSManagedObjectContext *)context
-withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
- 
+-(void)restoreItem:(VTABackupItem *)item intoContext:(NSManagedObjectContext *)context withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
+    
+    NSURL *URL = item.fileURL;
+    
     // Perform some sanity checking to prevent crashes
     if ( !context ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No NSManagedObjectContext found. Did you forget to set the context?"};
@@ -332,10 +305,6 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
     }
     
     self.running = YES;
-    
-    // Post notification that we will begin restoring
-    NSNotification *note = [NSNotification notificationWithName:VTABackupManagerWillProcessRestoreNotification object:self];
-    [[NSNotificationCenter defaultCenter] postNotification:note];
     
     NSManagedObjectContext *privateContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
     privateContext.persistentStoreCoordinator = context.persistentStoreCoordinator;
@@ -347,7 +316,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         NSData *fileData = [[NSMutableData alloc] initWithContentsOfFile:[URL path]];
         NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:fileData];
         NSDictionary *myDictionary = [unarchiver decodeObjectForKey:VTAEncoderKey];
-
+        
 #if VTABackupManagerDebugLog
         NSLog(@"%@", myDictionary);
 #endif
@@ -366,9 +335,6 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
             
             self.running = NO;
             
-            NSNotification *note = [NSNotification notificationWithName:VTABackupManagerDidProcessRestoreNotification object:self];
-            [[NSNotificationCenter defaultCenter] postNotification:note
-             ];
             completion(success, error);
         });
         
@@ -412,13 +378,13 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
                 // If there is an object
                 if ( relationshipObject ) {
                     [valuesDictionary setObject:[self dataStructureFromManagedObject:relationshipObject recursive:NO] forKey:relationshipName];
-                } 
+                }
                 continue;
             }
             // Otherwise, it's a set and each object needs to be added
             NSSet *relationshipObjects = [managedObject valueForKey:relationshipName];
             if ( [relationshipObjects count] > 0 ) {
-
+                
                 NSMutableArray *relationshipArray = [[NSMutableArray alloc] init];
                 for (NSManagedObject *relationshipObject in relationshipObjects) {
                     [relationshipArray addObject:[self dataStructureFromManagedObject:relationshipObject recursive:NO]];
@@ -433,14 +399,14 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
 #if VTABackupManagerDebugLog
     NSLog(@"%@", valuesDictionary);
 #endif
- 
+    
     return valuesDictionary;
 }
 
 - (NSManagedObject*)managedObjectFromStructure:(NSDictionary*)objectDictionary withContext:(NSManagedObjectContext *)context recursive:(BOOL)recursive {
     
     NSString *objectName = [objectDictionary objectForKey:VTABackupManagerManagedObjectNameKey];
-
+    
     NSMutableDictionary *structureDictionary = [objectDictionary mutableCopy];
     [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectNameKey];
     [structureDictionary removeObjectForKey:VTABackupManagerManagedObjectIDKey];
@@ -452,7 +418,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
         if ( [[structureDictionary objectForKey:key] isKindOfClass:[NSDictionary class]] ) {
             // toOne relationship
             // Get the relationship details
-
+            
             
             if ( recursive ) {
                 NSDictionary *detailDictionary = [structureDictionary objectForKey:key];
@@ -471,7 +437,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
                 
             }
             [structureDictionary removeObjectForKey:key];
-
+            
         } else if ( [[structureDictionary objectForKey:key] isKindOfClass:[NSArray class]] ) {
             // toMany relationship
             // We have an array of items
@@ -481,27 +447,27 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
                 NSLog(@"%@", [structureDictionary objectForKey:key]);
 #endif
                 for ( NSDictionary *detailDictionary in [structureDictionary objectForKey:key]) {
-//                    // This should be the same for everything in this loop
-
+                    //                    // This should be the same for everything in this loop
+                    
                     NSURL *relationshipObjectID  = [detailDictionary objectForKey:VTABackupManagerManagedObjectIDKey ];
                     NSManagedObject *existingObject = [self.dictionaryOfInsertedRelationshipIDs objectForKey:relationshipObjectID];
                     NSManagedObject *singleObject;
                     if ( !existingObject) {
                         singleObject = [self managedObjectFromStructure:detailDictionary withContext:context recursive:NO];
                         [self.dictionaryOfInsertedRelationshipIDs setObject:singleObject forKey:[detailDictionary objectForKey:VTABackupManagerManagedObjectIDKey]];
-//
+                        //
                     } else {
                         singleObject = [self.dictionaryOfInsertedRelationshipIDs objectForKey:relationshipObjectID];
                     }
                     [mutableSet addObject:singleObject];
-//
+                    //
                 }
                 if ( mutableSet ) {
-//
+                    //
                     [managedObject setValue:mutableSet forKey:key];
                 }
             }
-
+            
             [structureDictionary removeObjectForKey:key];
             
         }

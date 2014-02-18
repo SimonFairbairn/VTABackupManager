@@ -23,16 +23,57 @@ static NSString *deviceUUID;
 
 #pragma mark - Initialisation
 
--(id)initWithFile:(NSURL *)file {
-    
+-(instancetype)initWithURL:(NSURL *)file {
     if ( self = [super init] ) {
-        
         if ( !dateFormatter ) {
             dateFormatter = [[NSDateFormatter alloc] init];
             dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
             dateFormatter.timeZone = [NSTimeZone localTimeZone];
             dateFormatter.dateFormat = @"yyyy-MM-dd";
         }
+
+        _fileURL = file;
+        if ( !_fileURL ) return nil;
+        
+        NSDictionary *dictionary = [[NSFileManager defaultManager] attributesOfItemAtPath:[file path] error:nil];
+        _creationDate = dictionary[NSFileCreationDate];
+        _filePath = [[file path] lastPathComponent];
+        _fileName = [[[file path] lastPathComponent] stringByDeletingPathExtension];
+        
+        NSArray *arrayOfItems = [_fileName componentsSeparatedByString:@"--"];
+        
+        if ([arrayOfItems count] > 0) {
+            _dateString = [[arrayOfItems objectAtIndex:0] stringByReplacingOccurrencesOfString:@"backup-" withString:@""];
+            _dateStringAsDate = [dateFormatter dateFromString:_dateString];
+        }
+        
+        if ([arrayOfItems count] > 1) {
+            _deviceName = [arrayOfItems objectAtIndex:1];
+        }
+        
+        if ([arrayOfItems count] > 2 ) {
+            
+            _fileDeviceUUID = [arrayOfItems objectAtIndex:2];
+            
+            if ( [_fileDeviceUUID isEqualToString:[VTABackupItem deviceUUID]] ) {
+                _currentDevice = YES;
+            }
+        }
+    }
+    
+    return self;
+}
+
+-(id)initWithFile:(NSURL *)file {
+    
+    if ( self = [super init] ) {
+        if ( !dateFormatter ) {
+            dateFormatter = [[NSDateFormatter alloc] init];
+            dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+            dateFormatter.timeZone = [NSTimeZone localTimeZone];
+            dateFormatter.dateFormat = @"yyyy-MM-dd";
+        }
+
         
         _fileURL = file;
         if ( !_fileURL ) return nil;
@@ -108,5 +149,6 @@ static NSString *deviceUUID;
 -(NSString *)description {
     return self.filePath;
 }
+
 
 @end

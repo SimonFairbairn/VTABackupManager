@@ -8,6 +8,9 @@
 
 #import <Foundation/Foundation.h>
 
+#define VTABackupManagerErrorDomain @"VTA Backup Manager"
+#define VTAEncoderKey @"VTAEncoderKey"
+
 @interface VTABackupItem : NSObject
 
 /**
@@ -55,7 +58,10 @@
  */
 @property (nonatomic, getter = isCurrentDevice, readonly) BOOL currentDevice;
 
+
 -(id)initWithFile:(NSURL *)file;
+
+-(instancetype)initWithURL:(NSURL *)name;
 
 +(NSString *)newFileNameWithExtension:(NSString *)extension;
 

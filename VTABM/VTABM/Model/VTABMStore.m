@@ -147,8 +147,8 @@
         
         Cat *aCat = [NSEntityDescription insertNewObjectForEntityForName:@"Cat" inManagedObjectContext:self.backgroundContext];
         
-        NSInteger idx = arc4random_uniform([cats count]);
-        NSInteger toyIdx = arc4random_uniform([toys count]);
+        NSUInteger idx = arc4random_uniform((int)[cats count]);
+        NSUInteger toyIdx = arc4random_uniform((int)[toys count]);
         NSArray *catDetails = [cats objectAtIndex:idx];
         
         aCat.name = catDetails[0];
@@ -183,8 +183,8 @@
         for (int i = 0; i < 15000; i++) {
             Cat *aCat = [NSEntityDescription insertNewObjectForEntityForName:@"Cat" inManagedObjectContext:self.backgroundContext];
             
-            NSInteger idx = arc4random_uniform([cats count]);
-            NSInteger toyIdx = arc4random_uniform([toys count]);
+            NSInteger idx = arc4random_uniform((int)[cats count]);
+            NSInteger toyIdx = arc4random_uniform((int)[toys count]);
             NSArray *catDetails = [cats objectAtIndex:idx];
             
             aCat.name = catDetails[0];
@@ -236,9 +236,6 @@
     
     return array;
 }
-
-
-
 
 -(NSURL *)storePath {
     NSURL *docs = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];

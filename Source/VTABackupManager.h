@@ -22,14 +22,11 @@
 
 #import <Foundation/Foundation.h>
 #import <CoreData/CoreData.h>
+
 #import "VTABackupItem.h"
 
 // Notifications
-#define VTABackupManagerWillProcessBackupsNotification @"VTABackupManagerWillProcessBackupsNotification"
-#define VTABackupManagerDidProcessBackupsNotification @"VTABackupManagerDidProcessBackupsNotification"
-
-#define VTABackupManagerWillProcessRestoreNotification @"VTABackupManagerWillProcessRestoreNotification"
-#define VTABackupManagerDidProcessRestoreNotification @"VTABackupManagerDidProcessRestoreNotification"
+#define VTABackupManagerFileListDidChangeNotification @"VTABackupManagerFileListDidChangeNotification"
 
 @interface VTABackupManager : NSObject
 
@@ -39,27 +36,9 @@
 @property (nonatomic, strong) NSNumber *backupsToKeep;
 
 /**
- *  Directory to backup to, defaults to <Documents directory>/backups/
- */
-@property (nonatomic, strong) NSURL *backupDirectory;
-
-/**
- *  The format of the backup name is `<device>--<UUID>.<backupExtenstion>`
- *  The default extension is 'vtabackup'
- *  The year, month and day strings are all based on the gregorian calendar
- */
-@property (nonatomic, strong) NSString *backupExtension;
-
-/**
  *  An array of VTABackupItems representing the backups
  */
-@property (nonatomic, readonly) NSArray *backupList;
-
-/**
- *  Indicates whether the backup manager is running or not
- */
-@property (nonatomic, readonly, getter = isRunning) BOOL running;
-
+@property (nonatomic, readonly) NSMutableArray *backupList;
 
 /**
  *  Gets the shared instance
@@ -79,51 +58,30 @@
  *  @param name       The name of the entity to back up
  *  @param context    An instance of NSManagedObjectContext
  *  @param completion A handler that runs on completition
- *  @param overwrite  Whether to force an overwrite of a file with the same name
  */
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL success, NSError *error))completion
              forceOverwrite:(BOOL)overwrite;
 
-/**
- *  Backs up the given entity. If you don't want it to be recursive, use this method and set the recursive flag to NO
- *
- *  @param name       The name of the entity to back up
- *  @param context    An instance of NSManagedObjectContext
- *  @param completion A handler that runs on completition
- *  @param overwrite  Whether to force an overwrite of a file with the same name
- *  @param recursive  Whether to recursively back up entity relationships
- */
--(void)backupEntityWithName:(NSString *)name
-                  inContext:(NSManagedObjectContext *)context
-          completionHandler:(void (^)(BOOL success, NSError *error))completion
-             forceOverwrite:(BOOL)overwrite
-                  recursive:(BOOL)recursive;
-
-/**
- *  Delete the backup at the given URL, YES if successful NO otherwise
- *
- *  @param URL The URL of the backup to delete
- *
- *  @return YES if successfully deleted, NO otherwise
- */
--(BOOL)deleteBackupAtURL:(NSURL *)URL;
 
 // Takes a backup path and attempts to restore the Core Data stack from it.
 // Will empty the database before hand, so use with caution
 //
 // The method will pass a BOOL indicating whether or not the process was successful and
 // an error object indicating the error if there was one.
--(void)restoreFromURL:(NSURL *)URL
-          intoContext:(NSManagedObjectContext *)context
+-(void)restoreItem:(VTABackupItem *)item
+       intoContext:(NSManagedObjectContext *)context
 withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
 
-
 /**
- *  Forces the reload of the backupList array.
+ *  Delete the backup at the given URL, YES if successful NO otherwise
+ *
+ *  @param VTABackupItem The item to delete
+ *
+ *  @return YES if successfully deleted, NO otherwise
  */
--(void)reloadDirectory;
+-(BOOL)deleteBackupItem:(VTABackupItem *)item;
 
 
 @end

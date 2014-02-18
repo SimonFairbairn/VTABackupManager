@@ -41,13 +41,16 @@
 #pragma mark - View Lifecycle
 
 -(void)viewDidLoad {
-    __weak VTABMBackupViewController *weakSelf = self;
+    [super viewDidLoad];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(accountUpdated:) name:VTABackupManagerDropboxAccountDidChange object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reload) name:VTABackupManagerFileListDidChangeNotification object:nil];
     
     [VTADropboxManager sharedManager].backupsToKeep = @(3);
-    [[VTADropboxManager sharedManager].dropboxManager addObserver:self block: ^(DBAccount *account) {
-        NSLog(@"Dropbox account changed");
-        [weakSelf accountUpdated:account];
-    }];
+    
+    if ( [VTADropboxManager sharedManager].isSyncing ) {
+        [self.activityIndicator startAnimating];
+    }
 }
 
 -(void)viewWillAppear:(BOOL)animated {
@@ -98,6 +101,22 @@
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"backupCell"];
+    
+    id itemPre = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
+    
+    if ( [itemPre isKindOfClass:[VTABackupItem class]] ) {
+        VTABackupItem *item = (VTABackupItem *)itemPre;
+        cell.textLabel.text = [self.dateFormatter stringFromDate:item.dateStringAsDate];
+        cell.detailTextLabel.text = item.deviceName;
+    } else {
+        DBFileInfo *file = (DBFileInfo *)itemPre;
+        cell.textLabel.text = [file.path stringValue];
+    }
+    
+    return cell;
+
+    
+    
     VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
     
     cell.textLabel.text = [self.dateFormatter stringFromDate:item.dateStringAsDate];
@@ -108,7 +127,6 @@
 #pragma mark - UITableViewDelegate
 
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
-    
     if (editingStyle == UITableViewCellEditingStyleDelete) {
         VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
         if ( [[VTADropboxManager sharedManager] deleteBackupItem:item] ) {
@@ -143,19 +161,17 @@
 #pragma mark - Methods
 
 - (void)accountUpdated:(DBAccount *)account {
-    
-    if (!account.linked) {
+    if (![VTADropboxManager sharedManager].isDropboxEnabled) {
         [[[UIAlertView alloc] initWithTitle:@"Unlinked" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] show];
+        [self reload];
     } else {
         [self reload];
     }
 }
 
 -(void)reload {
-    self.dropboxSwitch.on = NO;
-    if ( [[VTADropboxManager sharedManager].dropboxManager linkedAccount] ) {
-        self.dropboxSwitch.on = YES;
-    }
+    self.dropboxSwitch.on = [VTADropboxManager sharedManager].isDropboxEnabled;
+    ( [VTADropboxManager sharedManager].isSyncing ) ? [self.activityIndicator startAnimating] : [self.activityIndicator stopAnimating];
     [self.tableView reloadData];
 }
 

@@ -11,6 +11,8 @@
 #import "VTABackupManager.h"
 #import "Reachability.h"
 
+#define VTABackupManagerDropboxAccountDidChange @"VTABackupManagerDropboxAccountDidChange"
+
 /**
  *  Manages syncing between Dropbox and the VTABackupManager.
  *  Syncing is based on the date of the file creation
@@ -37,5 +39,6 @@
  */
 @property (nonatomic, getter = isDropboxAvailable) BOOL dropboxAvailable;
 
+@property (nonatomic, readonly, getter = isDropboxEnabled) BOOL dropboxEnabled;
 
 @end

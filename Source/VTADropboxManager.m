@@ -40,7 +40,9 @@
 
 -(DBAccountManager *)dropboxManager {
     if ( ![DBAccountManager sharedManager] ) {
+#if VTADropboxManagerDebugLog
         NSLog(@"Setting up Manager");
+#endif
         DBAccountManager *manager = [[DBAccountManager alloc] initWithAppKey:VTABMDropboxKey secret:VTABMDropboxSecret];
         [DBAccountManager setSharedManager:manager];
     }
@@ -97,18 +99,77 @@
 }
 
 -(id)init {
-
+    
     if ( self = [super init] ) {
         DBAccount *account = [self.dropboxManager linkedAccount];
         if ( account ) {
             _dropboxEnabled = YES;
         }
+        _syncing = YES;
+        __weak VTADropboxManager *weakSelf = self;
         
+        [self.dropboxManager addObserver:self block: ^(DBAccount *account) {
+            
+            // reload backpup list
+            
+            weakSelf.dropboxEnabled = account.linked;
+#if VTADropboxManagerDebugLog
+            NSLog(@"VTADropboxManager: Account changed: %@", account);
+            NSLog(@"Account is enabled: %i", weakSelf.dropboxEnabled);
+#endif
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxAccountDidChange object:nil];
+            weakSelf.backupList = nil;
+            weakSelf.syncing = NO;
+        }];
+        
+        
+        //        __weak VTADropboxManager *weakSelf = self;
+
         if ( account && ![DBFilesystem sharedFilesystem]) {
             DBFilesystem *system = [[DBFilesystem alloc] initWithAccount:account];
             [DBFilesystem setSharedFilesystem:system];
             [system addObserver:self block:^{
-                NSLog(@"Dropbox file system changed");
+                [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
+
+#if VTADropboxManagerDebugLog
+                NSLog(@"File system changed.");
+#endif
+                _syncing = NO;
+                
+            }];
+            
+            
+            [system addObserver:self forPathAndChildren:[DBPath root] block:^{
+                
+#if VTADropboxManagerDebugLog
+                NSLog(@"Files in the root path or one of its children changed.");
+#endif
+                
+                if ( _syncing ) return;
+
+                
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
+                    DBError *filesystemError;
+                    NSArray *immContents = [[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:&filesystemError];
+                    
+#if VTADropboxManagerDebugLog
+                    NSLog(@"Found files: %@", immContents);
+#endif
+                    
+                    self.backupList = [NSMutableArray arrayWithArray:immContents];
+                    //                        [mContents sortUsingFunction:sortFileInfos context:NULL];
+                    dispatch_async(dispatch_get_main_queue(), ^() {
+                        if ( filesystemError ) {
+                            [[[UIAlertView alloc] initWithTitle:@"Error Accessing Files" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] show];
+#if VTADropboxManagerDebugLog
+                            NSLog(@"%@", [filesystemError localizedDescription]);
+#endif
+                        }
+                        
+                        _syncing = NO;
+                        [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
+                    });
+                });
             }];
         }
         [self.hostReachability startNotifier];
@@ -120,7 +181,7 @@
 #pragma mark - Methods
 
 -(void)updateStatus {
-
+    
     DBAccount *account = [self.dropboxManager linkedAccount];
     if ( account ) {
         self.dropboxEnabled = YES;
@@ -138,13 +199,33 @@
     return NO;
 }
 
+-(void)moveToDropbox:(NSNotificationCenter *)note {
+    // Something on the local file system has changed, so we need to go through the backup array and move any new ones to Dropbox
+}
+
+
 #pragma mark - new implementations
+
+-(NSMutableArray *)listBackups {
+    
+    if ( [self.dropboxManager linkedAccount] ) {
+        return nil;
+    } else {
+        return [super listBackups];
+    }
+    
+}
+
 
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL, NSError *))completion
              forceOverwrite:(BOOL)overwrite {
     [super backupEntityWithName:name inContext:context completionHandler:completion forceOverwrite:overwrite];
+    
+    
+    
+    
 }
 
 -(void)restoreFromURL:(NSURL *)URL

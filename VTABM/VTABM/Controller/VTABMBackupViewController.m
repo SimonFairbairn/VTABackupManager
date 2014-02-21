@@ -45,7 +45,7 @@
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(accountUpdated:) name:VTABackupManagerDropboxAccountDidChange object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changing) name:VTABackupManagerFileListWillChangeNotification  object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reload) name:VTABackupManagerFileListDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reload:) name:VTABackupManagerFileListDidChangeNotification object:nil];
     
     [VTADropboxManager sharedManager].backupsToKeep = @(3);
     
@@ -56,7 +56,7 @@
 
 -(void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    [self reload];
+    [self reload:nil];
 }
 
 -(void)dealloc {
@@ -130,10 +130,8 @@
 
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
     if (editingStyle == UITableViewCellEditingStyleDelete) {
-        id item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
-        if ( [[VTADropboxManager sharedManager] deleteBackupItem:item] ) {
-//            [self reload];
-        }
+        VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
+        [[VTADropboxManager sharedManager] deleteBackupItem:item];
     }
 }
 
@@ -165,16 +163,30 @@
 - (void)accountUpdated:(DBAccount *)account {
     if (![VTADropboxManager sharedManager].isDropboxEnabled) {
         [[[UIAlertView alloc] initWithTitle:@"Unlinked" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] show];
-        [self reload];
+        [self reload:nil];
     } else {
-        [self reload];
+        [self reload:nil];
     }
 }
 
--(void)reload {
+-(void)reload:(NSNotification *)note {
     self.dropboxSwitch.on = [VTADropboxManager sharedManager].isDropboxEnabled;
     ( [VTADropboxManager sharedManager].isSyncing ) ? [self.activityIndicator startAnimating] : [self.activityIndicator stopAnimating];
-    [self.tableView reloadData];
+    if ( note ) {
+        NSDictionary *dictionary = [note userInfo];
+        NSLog(@"%@", dictionary);
+        
+        if ( [dictionary objectForKey:VTABackupManagerItemListDeletedKey] ) {
+            [self.tableView deleteRowsAtIndexPaths:[dictionary objectForKey:VTABackupManagerItemListDeletedKey] withRowAnimation:UITableViewRowAnimationAutomatic];
+        }
+        
+    } else {
+
+    
+        [self.tableView reloadData];
+        
+    }
+    
 }
 
 -(void)changing {

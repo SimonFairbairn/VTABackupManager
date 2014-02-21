@@ -23,7 +23,7 @@ static NSString *deviceUUID;
 
 #pragma mark - Initialisation
 
--(instancetype)initWithURL:(NSURL *)file {
+-(instancetype)initWithURL:(NSURL *)url name:(NSString *)name {
     if ( self = [super init] ) {
         if ( !dateFormatter ) {
             dateFormatter = [[NSDateFormatter alloc] init];
@@ -32,13 +32,12 @@ static NSString *deviceUUID;
             dateFormatter.dateFormat = @"yyyy-MM-dd";
         }
 
-        _fileURL = file;
-        if ( !_fileURL ) return nil;
+        _fileURL = url;
         
-        NSDictionary *dictionary = [[NSFileManager defaultManager] attributesOfItemAtPath:[file path] error:nil];
+        NSDictionary *dictionary = [[NSFileManager defaultManager] attributesOfItemAtPath:[url path] error:nil];
         _creationDate = dictionary[NSFileCreationDate];
-        _filePath = [[file path] lastPathComponent];
-        _fileName = [[[file path] lastPathComponent] stringByDeletingPathExtension];
+        _filePath = [[url path] lastPathComponent];
+        _fileName = [[[url path] lastPathComponent] stringByDeletingPathExtension];
         
         NSArray *arrayOfItems = [_fileName componentsSeparatedByString:@"--"];
         

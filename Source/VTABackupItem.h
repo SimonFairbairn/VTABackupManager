@@ -61,7 +61,7 @@
 
 -(id)initWithFile:(NSURL *)file;
 
--(instancetype)initWithURL:(NSURL *)name;
+-(instancetype)initWithURL:(NSURL *)url name:(NSString *)name;
 
 +(NSString *)newFileNameWithExtension:(NSString *)extension;
 

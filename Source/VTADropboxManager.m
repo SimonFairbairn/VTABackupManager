@@ -76,14 +76,8 @@
         if ( account ) {
             _dropboxEnabled = YES;
             _syncing = YES;
+            [self setupFilesystem];
         }
-        
-        _hostReachability = [Reachability reachabilityForInternetConnection];
-        [self reachabilityChanged:nil];
-        [_hostReachability startNotifier];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reachabilityChanged:) name:kReachabilityChangedNotification object:_hostReachability];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(backupCompleted:) name:VTABackupManagerBackupDidCompleteNotification object:nil];
-        
 
         __weak VTADropboxManager *weakSelf = self;
         
@@ -103,9 +97,11 @@
             
             if ( account.linked ) {
                 [weakSelf setupFilesystem];
+            } else {
+                [weakSelf.hostReachability stopNotifier];
             }
         }];
-        [self setupFilesystem];
+
         
     }
     return self;
@@ -114,6 +110,13 @@
 #pragma mark - Methods
 
 -(void)setupFilesystem {
+    _hostReachability = [Reachability reachabilityForInternetConnection];
+    [self reachabilityChanged:nil];
+    [_hostReachability startNotifier];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reachabilityChanged:) name:kReachabilityChangedNotification object:_hostReachability];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(backupCompleted:) name:VTABackupManagerBackupDidCompleteNotification object:nil];
+    
+    
     if ( [self.dropboxManager linkedAccount] && ![DBFilesystem sharedFilesystem]) {
         DBFilesystem *system = [[DBFilesystem alloc] initWithAccount:[self.dropboxManager linkedAccount]];
         [DBFilesystem setSharedFilesystem:system];
@@ -166,8 +169,6 @@
                 NSLog(@"Status: %@", file.status);
                 NSLog(@"Newer Status: %@", file.newerStatus);
                 
-
-                
                 if ( file.status.cached && !file.newerStatus ) {
                     [file close];
                     [downloadedFiles addObject:item];
@@ -178,17 +179,7 @@
                         NSLog(@"Update error: %@", [updateError localizedDescription]);
                     }
                     [file addObserver:self block:^{
-
-                        if ( file.status.cached ) {
-
-                            [file removeObserver:self];
-                            [file close];
-                            dispatch_async(dispatch_get_main_queue(), ^() {
-                                [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:filesystemError];
-                                [self fetchFiles];
-                            });
-
-                        }
+                        [self reloadFiles];
                     }];
                     
                     _syncing = YES;
@@ -208,6 +199,18 @@
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:filesystemError];
         });
     });
+}
+
+-(void)reloadFiles {
+    DBError *filesystemError;
+    NSArray *immContents = [[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:&filesystemError];
+    NSLog(@"%@", immContents);
+    
+    
+        dispatch_async(dispatch_get_main_queue(), ^() {
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil];
+            [self fetchFiles];
+        });
 }
 
 -(void)updateStatus {
@@ -236,17 +239,6 @@
 
 #pragma mark - new implementations
 
--(NSMutableArray *)listBackups {
-    
-    if ( [self.dropboxManager linkedAccount] ) {
-        return nil;
-    } else {
-        return [super listBackups];
-    }
-    
-}
-
-
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL, NSError *))completion
@@ -257,14 +249,24 @@
 }
 
 -(void)backupCompleted:(NSNotificationCenter *)note {
-    NSArray *localBackups = [super listBackups];
+    if ( !self.dropboxEnabled ) return;
+    
+    NSArray *localBackups = self.backupList;
     
     NSLog(@"Local backups: %@", localBackups);
     
     for (VTABackupItem *item in localBackups ) {
         
         for ( DBFileInfo *info in self.backupList ) {
-            if ( ![[info.path stringValue] isEqualToString:[[[DBPath root] childPath:item.filePath] stringValue]]) {
+            if ( [[info.path stringValue] isEqualToString:[[[DBPath root] childPath:item.filePath] stringValue]] ) {
+                DBError *deleteError;
+                [[DBFilesystem sharedFilesystem] deletePath:[[DBPath root] childPath:item.filePath] error:&deleteError];
+                if ( deleteError ) {
+                    NSLog(@"Delete error: %@", [deleteError localizedDescription]);
+                }
+            }
+            
+//            if ( ![[info.path stringValue] isEqualToString:[[[DBPath root] childPath:item.filePath] stringValue]]) {
                 DBError *fileError;
                 DBFile *file = [[DBFilesystem sharedFilesystem] createFile:[[DBPath root] childPath:item.filePath]  error:&fileError];
                 if ( fileError ) {
@@ -279,8 +281,7 @@
                         NSLog(@"%@", [writeError localizedDescription]);
                     }
                 }
-                
-            }
+//            }
         }
     }    
 }
@@ -304,18 +305,25 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
 }
 
 -(BOOL)deleteBackupItem:(id)aItem {
-    if ( [aItem isKindOfClass:[VTABackupItem class]] ) {
+    if ( self.dropboxEnabled ) {
+        if ( [aItem isKindOfClass:[VTABackupItem class]] ) {
+            return [super deleteBackupItem:aItem];
+        }
+        if ( [aItem isKindOfClass:[DBFileInfo class]] ) {
+            DBFileInfo *item = (DBFileInfo *)aItem;
+            DBError *deleteError;
+            [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError];
+            if ( deleteError ) {
+                NSLog(@"%@", [deleteError localizedDescription]);
+            }
+            return YES;
+        }
+    } else {
+        _syncing = NO;
         return [super deleteBackupItem:aItem];
     }
-    if ( [aItem isKindOfClass:[DBFileInfo class]] ) {
-        DBFileInfo *item = (DBFileInfo *)aItem;
-        DBError *deleteError;
-        [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError];
-        if ( deleteError ) {
-            NSLog(@"%@", [deleteError localizedDescription]);
-        }
-        return YES;
-    }
+    
+
     return NO;
 }
 

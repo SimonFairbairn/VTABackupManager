@@ -31,6 +31,9 @@
 
 #define VTABackupManagerBackupDidCompleteNotification @"VTABackupManagerBackupDidCompleteNotification"
 
+#define VTABackupManagerItemListDeletedKey @"VTABackupManagerItemListDeletedKey"
+#define VTABackupManagerItemListInsertedKey @"VTABackupManagerItemListInsertedKey"
+
 @interface VTABackupManager : NSObject
 
 /**
@@ -42,6 +45,11 @@
  *  An array of VTABackupItems representing the backups
  */
 @property (nonatomic, readonly) NSMutableArray *backupList;
+
+/**
+ *  An array of NSURLs in the local filesystem
+ */
+@property (nonatomic, readonly) NSMutableArray *localBackupList;
 
 /**
  *  Gets the shared instance
@@ -84,8 +92,7 @@ withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
  *
  *  @return YES if successfully deleted, NO otherwise
  */
--(BOOL)deleteBackupItem:(id)aItem;
+-(BOOL)deleteBackupItem:(VTABackupItem *)item;
 
--(NSMutableArray *)listBackups;
 
 @end

@@ -1,4 +1,4 @@
-    //
+//
 //  VTABackupManager.h
 //
 //  Created by Simon Fairbairn on 21/06/2013.
@@ -27,6 +27,7 @@
 @interface VTABackupManager ()
 
 @property (nonatomic, readwrite) NSMutableArray *backupList;
+@property (nonatomic, readwrite) NSMutableArray *localBackupList;
 @property (nonatomic, strong) NSMutableDictionary *dictionaryOfInsertedRelationshipIDs;
 
 @property (nonatomic, strong) NSString *backupExtension;
@@ -67,9 +68,25 @@
 -(NSMutableArray *)backupList {
     
     if ( !_backupList ) {
-        _backupList = [self listBackups];
+        _backupList = [self sortBackups:self.localBackupList];
     }
     return _backupList;
+}
+
+-(NSMutableArray *)localBackupList {
+    if ( !_localBackupList ) {
+        _localBackupList = [[NSMutableArray alloc] init];
+        NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[self backupDirectory] includingPropertiesForKeys:@[] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+        
+        NSPredicate *predicate = [NSPredicate predicateWithFormat:@"pathExtension ENDSWITH '.%@'", self.backupExtension];
+        [backups filteredArrayUsingPredicate:predicate];
+        
+        for ( NSURL *url in backups ) {
+            VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
+            [_localBackupList addObject:item];
+        }
+    }
+    return _localBackupList;
 }
 
 -(NSNumber *) backupsToKeep {
@@ -91,52 +108,49 @@
 
 #pragma mark - Methods
 
--(NSMutableArray *)listBackups {
-    
-#if VTABackupManagerDebugLog
-    NSLog(@"Listing files at: %@", [self backupDirectory]);
-#endif
-    
-    NSMutableArray *mutableBackups = [[NSMutableArray alloc] init];
-    NSArray *backups = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[self backupDirectory] includingPropertiesForKeys:@[] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
-    
-    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"pathExtension ENDSWITH '.%@'", self.backupExtension];
-    [backups filteredArrayUsingPredicate:predicate];
-    mutableBackups = [backups mutableCopy];
-    
-    NSMutableArray *mutableBackupArray = [NSMutableArray new];
-    for ( NSURL *url in mutableBackups ) {
-        VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
-        [mutableBackupArray addObject:item];
-    }
-    
+//-(NSMutableArray *)listBackups {
+//    return nil;
+//}
+
+-(NSMutableArray *)sortBackups:(NSMutableArray *)arrayOfBackups {
     NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
     
 #if VTABackupManagerDebugLog
     NSLog(@"Full List: %@", backups);
     NSLog(@"Filtered List: %@", mutableBackupArray);
 #endif
-    return [[mutableBackupArray sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
+    return [[arrayOfBackups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
+    
 }
 
--(BOOL)deleteBackupItem:(id)aItem {
+-(BOOL)deleteBackupItem:(VTABackupItem *)item {
     
-    if ( ![aItem isKindOfClass:[VTABackupItem class]]) return NO;
-    VTABackupItem *item = (VTABackupItem *)aItem;
-    
-    NSError *error;
-    [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
-    if ( error ) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
+        sleep(3);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            
+            
+            NSError *error;
+            [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
+            if ( error ) {
+                
 #if VTABackupManagerDebugLog
-        NSLog(@"%@", [error localizedDescription]);
+                NSLog(@"%@", [error localizedDescription]);
 #endif
+                
+                //        return NO;
+            } else {
+                // Destroy and recreate the list
+                
+                NSIndexPath *indexPath = [NSIndexPath indexPathForRow:[self.backupList indexOfObject:item] inSection:0];
+                NSDictionary *dictionary = @{VTABackupManagerItemListDeletedKey : @[indexPath]};
+                [self.backupList removeObject:item];
+                [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil userInfo:dictionary];
+            }
+        });
         
-        return NO;
-    } else {
-        // Destroy and recreate the list
-        [self.backupList removeObject:item];
-        [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil];
-    }
+    });
+    
     return YES;
 }
 
@@ -255,7 +269,7 @@
             self.running = NO;
             self.backupList = nil;
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
-            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];            
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];
             completion(success, error);
         });
         

@@ -9,9 +9,11 @@
 #import <Dropbox/Dropbox.h>
 
 #import "VTABackupManager.h"
-#import "Reachability.h"
 
 #define VTABackupManagerDropboxAccountDidChange @"VTABackupManagerDropboxAccountDidChange"
+#define VTABackupManagerDropboxNetworkDidChange @"VTABackupManagerDropboxNetworkDidChange"
+
+#define VTABackupManagerDropboxAccountChangeKey @"VTABackupManagerDropboxAccountChangeKey"
 
 /**
  *  Manages syncing between Dropbox and the VTABackupManager.
@@ -35,7 +37,7 @@
 @property (nonatomic, getter = shouldUseCellular) BOOL useCellular;
 
 /**
- *  A property indicating whether or not cellular data should be used for syncing
+ *  A property indicating whether or not Dropbox is available
  */
 @property (nonatomic, getter = isDropboxAvailable) BOOL dropboxAvailable;
 

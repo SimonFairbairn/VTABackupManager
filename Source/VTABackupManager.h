@@ -26,7 +26,10 @@
 #import "VTABackupItem.h"
 
 // Notifications
+#define VTABackupManagerFileListWillChangeNotification @"VTABackupManagerFileListWillChangeNotification"
 #define VTABackupManagerFileListDidChangeNotification @"VTABackupManagerFileListDidChangeNotification"
+
+#define VTABackupManagerBackupDidCompleteNotification @"VTABackupManagerBackupDidCompleteNotification"
 
 @interface VTABackupManager : NSObject
 
@@ -81,7 +84,7 @@ withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
  *
  *  @return YES if successfully deleted, NO otherwise
  */
--(BOOL)deleteBackupItem:(VTABackupItem *)item;
+-(BOOL)deleteBackupItem:(id)aItem;
 
 -(NSMutableArray *)listBackups;
 

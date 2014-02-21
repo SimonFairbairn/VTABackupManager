@@ -44,6 +44,7 @@
     [super viewDidLoad];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(accountUpdated:) name:VTABackupManagerDropboxAccountDidChange object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changing) name:VTABackupManagerFileListWillChangeNotification  object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reload) name:VTABackupManagerFileListDidChangeNotification object:nil];
     
     [VTADropboxManager sharedManager].backupsToKeep = @(3);
@@ -59,7 +60,8 @@
 }
 
 -(void)dealloc {
-    [[VTADropboxManager sharedManager].dropboxManager removeObserver:self];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 #pragma mark - Actions
@@ -103,7 +105,7 @@
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"backupCell"];
     
     id itemPre = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
-    
+
     if ( [itemPre isKindOfClass:[VTABackupItem class]] ) {
         VTABackupItem *item = (VTABackupItem *)itemPre;
         cell.textLabel.text = [self.dateFormatter stringFromDate:item.dateStringAsDate];
@@ -128,9 +130,9 @@
 
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
     if (editingStyle == UITableViewCellEditingStyleDelete) {
-        VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
+        id item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
         if ( [[VTADropboxManager sharedManager] deleteBackupItem:item] ) {
-            [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
+//            [self reload];
         }
     }
 }
@@ -173,6 +175,10 @@
     self.dropboxSwitch.on = [VTADropboxManager sharedManager].isDropboxEnabled;
     ( [VTADropboxManager sharedManager].isSyncing ) ? [self.activityIndicator startAnimating] : [self.activityIndicator stopAnimating];
     [self.tableView reloadData];
+}
+
+-(void)changing {
+    [self.activityIndicator startAnimating];
 }
 
 @end

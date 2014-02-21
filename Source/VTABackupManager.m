@@ -1,4 +1,4 @@
-//
+    //
 //  VTABackupManager.h
 //
 //  Created by Simon Fairbairn on 21/06/2013.
@@ -22,7 +22,7 @@
 
 #import "VTABackupManager.h"
 
-#define VTABackupManagerDebugLog 1
+#define VTABackupManagerDebugLog 0
 
 @interface VTABackupManager ()
 
@@ -119,7 +119,11 @@
     return [[mutableBackupArray sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
 }
 
--(BOOL)deleteBackupItem:(VTABackupItem *)item {
+-(BOOL)deleteBackupItem:(id)aItem {
+    
+    if ( ![aItem isKindOfClass:[VTABackupItem class]]) return NO;
+    VTABackupItem *item = (VTABackupItem *)aItem;
+    
     NSError *error;
     [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
     if ( error ) {
@@ -131,6 +135,7 @@
     } else {
         // Destroy and recreate the list
         [self.backupList removeObject:item];
+        [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil];
     }
     return YES;
 }
@@ -250,6 +255,7 @@
             self.running = NO;
             self.backupList = nil;
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];            
             completion(success, error);
         });
         

@@ -132,6 +132,7 @@
     if (editingStyle == UITableViewCellEditingStyleDelete) {
         VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
         [[VTADropboxManager sharedManager] deleteBackupItem:item];
+        [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
     }
 }
 
@@ -172,21 +173,15 @@
 -(void)reload:(NSNotification *)note {
     self.dropboxSwitch.on = [VTADropboxManager sharedManager].isDropboxEnabled;
     ( [VTADropboxManager sharedManager].isSyncing ) ? [self.activityIndicator startAnimating] : [self.activityIndicator stopAnimating];
-    if ( note ) {
-        NSDictionary *dictionary = [note userInfo];
-        NSLog(@"%@", dictionary);
-        
-        if ( [dictionary objectForKey:VTABackupManagerItemListDeletedKey] ) {
-            [self.tableView deleteRowsAtIndexPaths:[dictionary objectForKey:VTABackupManagerItemListDeletedKey] withRowAnimation:UITableViewRowAnimationAutomatic];
-        }
-        
-    } else {
 
-    
+    NSDictionary *userInfo = [note userInfo];
+    if  ( [userInfo objectForKey:VTABackupManagerItemListInsertedKey] ) {
+        [self.tableView insertRowsAtIndexPaths:[userInfo objectForKey:VTABackupManagerItemListInsertedKey] withRowAnimation:UITableViewRowAnimationAutomatic];
+    } else {
         [self.tableView reloadData];
-        
     }
     
+
 }
 
 -(void)changing {

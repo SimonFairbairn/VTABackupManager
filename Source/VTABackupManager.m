@@ -22,7 +22,7 @@
 
 #import "VTABackupManager.h"
 
-#define VTABackupManagerDebugLog 0
+#define VTABackupManagerDebugLog 1
 
 @interface VTABackupManager ()
 
@@ -114,39 +114,29 @@
 
 -(NSMutableArray *)sortBackups:(NSMutableArray *)arrayOfBackups {
     NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
-    
-#if VTABackupManagerDebugLog
-    NSLog(@"Full List: %@", backups);
-    NSLog(@"Filtered List: %@", mutableBackupArray);
-#endif
     return [[arrayOfBackups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
-    
 }
 
 -(BOOL)deleteBackupItem:(VTABackupItem *)item {
-    
+    [self.localBackupList removeObject:item];
+    [self.backupList removeObject:item];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
-        sleep(3);
+        sleep(4);
         dispatch_async(dispatch_get_main_queue(), ^{
-            
-            
             NSError *error;
             [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
             if ( error ) {
-                
+                if ([[NSFileManager defaultManager] fileExistsAtPath:[item.fileURL path]]) {
+                    [self.localBackupList addObject:item];
+                    self.backupList = [self sortBackups:self.localBackupList];                    
+                }
 #if VTABackupManagerDebugLog
                 NSLog(@"%@", [error localizedDescription]);
 #endif
                 
                 //        return NO;
-            } else {
-                // Destroy and recreate the list
-                
-                NSIndexPath *indexPath = [NSIndexPath indexPathForRow:[self.backupList indexOfObject:item] inSection:0];
-                NSDictionary *dictionary = @{VTABackupManagerItemListDeletedKey : @[indexPath]};
-                [self.backupList removeObject:item];
-                [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil userInfo:dictionary];
             }
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil userInfo:nil];
         });
         
     });
@@ -255,20 +245,35 @@
         [archiver encodeObject:dictionary forKey:VTAEncoderKey];
         [archiver finishEncoding];
         
+        VTABackupItem *newItem;
         if ( ![data writeToFile:[backupFileForToday path] atomically:YES] ) {
             NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error writing to file."};
             error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
+        } else {
+            BOOL itemExists = NO;
+            for (VTABackupItem *item in self.backupList ) {
+                if ( [item.filePath isEqualToString:[backupFileForToday lastPathComponent]] ) {
+                    itemExists = YES;
+                }
+            }
+            newItem = (!itemExists) ? [[VTABackupItem alloc] initWithFile:backupFileForToday] : nil;
         }
-        
-        
         
         // If error is set, we weren't successful
         success = ( error ) ? NO : YES;
         
         dispatch_async(dispatch_get_main_queue(), ^{
             self.running = NO;
-            self.backupList = nil;
-            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
+            NSDictionary *userInfo;
+            if ( newItem ) {
+                [self.localBackupList addObject:newItem];
+                self.backupList = [self sortBackups:self.localBackupList];
+                NSInteger location = [self.backupList indexOfObject:newItem];
+                NSIndexPath *ip = [NSIndexPath indexPathForRow:location inSection:0];
+                userInfo = @{VTABackupManagerItemListInsertedKey : @[ip]};
+            }
+
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self userInfo:userInfo];
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];
             completion(success, error);
         });
@@ -417,7 +422,7 @@
     }
     
 #if VTABackupManagerDebugLog
-    NSLog(@"%@", valuesDictionary);
+//    NSLog(@"%@", valuesDictionary);
 #endif
     
     return valuesDictionary;
@@ -464,7 +469,7 @@
             if ( recursive ) {
                 NSMutableSet *mutableSet = [[NSMutableSet alloc] init];
 #if VTABackupManagerDebugLog
-                NSLog(@"%@", [structureDictionary objectForKey:key]);
+//                NSLog(@"%@", [structureDictionary objectForKey:key]);
 #endif
                 for ( NSDictionary *detailDictionary in [structureDictionary objectForKey:key]) {
                     //                    // This should be the same for everything in this loop

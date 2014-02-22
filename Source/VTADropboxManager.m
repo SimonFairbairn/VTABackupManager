@@ -243,13 +243,18 @@
                   inContext:(NSManagedObjectContext *)context
           completionHandler:(void (^)(BOOL, NSError *))completion
              forceOverwrite:(BOOL)overwrite {
-    _syncing = YES;
+    self.syncing = self.dropboxEnabled;
     [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListWillChangeNotification object:nil];
     [super backupEntityWithName:name inContext:context completionHandler:completion forceOverwrite:overwrite];
 }
 
 -(void)backupCompleted:(NSNotificationCenter *)note {
-    if ( !self.dropboxEnabled ) return;
+    
+    
+    if ( !self.dropboxEnabled ) {
+        _syncing = NO;
+        return;
+    }
     
     NSArray *localBackups = self.backupList;
     

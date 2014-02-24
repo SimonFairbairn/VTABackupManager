@@ -44,6 +44,7 @@
 		F4B6F75618B3424700987B99 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F4B6F75518B3424700987B99 /* SystemConfiguration.framework */; };
 		F4B6F75818B3426100987B99 /* libc++.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F4B6F75718B3426100987B99 /* libc++.dylib */; };
 		F4B6F75B18B358A700987B99 /* VTABackupManager 2.m in Sources */ = {isa = PBXBuildFile; fileRef = F4B6F75A18B358A700987B99 /* VTABackupManager 2.m */; };
+		F4B6F75E18B9BB4F00987B99 /* VTABMBackupManagerTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F4B6F75D18B9BB4F00987B99 /* VTABMBackupManagerTests.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -116,6 +117,8 @@
 		F4B6F75718B3426100987B99 /* libc++.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libc++.dylib"; path = "usr/lib/libc++.dylib"; sourceTree = SDKROOT; };
 		F4B6F75918B358A700987B99 /* VTABackupManager 2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "VTABackupManager 2.h"; sourceTree = "<group>"; };
 		F4B6F75A18B358A700987B99 /* VTABackupManager 2.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "VTABackupManager 2.m"; sourceTree = "<group>"; };
+		F4B6F75C18B9BB4F00987B99 /* VTABMBackupManagerTests.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VTABMBackupManagerTests.h; sourceTree = "<group>"; };
+		F4B6F75D18B9BB4F00987B99 /* VTABMBackupManagerTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VTABMBackupManagerTests.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -234,6 +237,8 @@
 			children = (
 				F45405E51802AD8D00F50C1D /* VTABMTests.m */,
 				F45405E01802AD8D00F50C1D /* Supporting Files */,
+				F4B6F75C18B9BB4F00987B99 /* VTABMBackupManagerTests.h */,
+				F4B6F75D18B9BB4F00987B99 /* VTABMBackupManagerTests.m */,
 			);
 			path = VTABMTests;
 			sourceTree = "<group>";
@@ -419,6 +424,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4B6F75E18B9BB4F00987B99 /* VTABMBackupManagerTests.m in Sources */,
 				F45405E61802AD8D00F50C1D /* VTABMTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -16,7 +16,8 @@
 
 // REMEMBER TO ALWAYS MERGE YOUR CHANGES ON THE MAIN THREAD
 @property (nonatomic, strong) NSManagedObjectContext *context;
-@property (nonatomic, strong) NSArray *allCats;
+
+@property (nonatomic) BOOL testContext;
 
 
 +(VTABMStore *)sharedStore;
@@ -30,5 +31,7 @@
 -(void)thousandCats;
 
 -(void)deleteStore;
+
+-(NSArray *)allCats;
 
 @end

@@ -36,8 +36,8 @@ static NSString *deviceUUID;
         
         NSDictionary *dictionary = [[NSFileManager defaultManager] attributesOfItemAtPath:[url path] error:nil];
         _creationDate = dictionary[NSFileCreationDate];
-        _filePath = [[url path] lastPathComponent];
-        _fileName = [[[url path] lastPathComponent] stringByDeletingPathExtension];
+        _filePath = [name lastPathComponent];
+        _fileName = [_filePath stringByDeletingPathExtension];
         
         NSArray *arrayOfItems = [_fileName componentsSeparatedByString:@"--"];
         
@@ -146,7 +146,8 @@ static NSString *deviceUUID;
 }
 
 -(NSString *)description {
-    return self.filePath;
+    
+    return [[super description] stringByAppendingFormat:@"%@", self.filePath];
 }
 
 

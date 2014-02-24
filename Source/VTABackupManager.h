@@ -47,11 +47,6 @@
 @property (nonatomic, readonly) NSMutableArray *backupList;
 
 /**
- *  An array of NSURLs in the local filesystem
- */
-@property (nonatomic, readonly) NSMutableArray *localBackupList;
-
-/**
  *  Gets the shared instance
  *
  *  @return A shared instance of VTABackupManager
@@ -72,7 +67,7 @@
  */
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
-          completionHandler:(void (^)(BOOL success, NSError *error))completion
+          completionHandler:(void (^)(BOOL success, NSError *error, VTABackupItem *newItem, BOOL didOverwrite))completion
              forceOverwrite:(BOOL)overwrite;
 
 
@@ -86,13 +81,12 @@
 withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
 
 /**
- *  Delete the backup at the given URL, YES if successful NO otherwise
+ *  Delete the passed backup, YES if successful NO otherwise
  *
  *  @param VTABackupItem The item to delete
  *
  *  @return YES if successfully deleted, NO otherwise
  */
 -(BOOL)deleteBackupItem:(VTABackupItem *)item;
-
 
 @end

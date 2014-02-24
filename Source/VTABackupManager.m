@@ -68,7 +68,7 @@
 -(NSMutableArray *)backupList {
     
     if ( !_backupList ) {
-        _backupList = [self sortBackups:self.localBackupList];
+        _backupList = [self fetchBackups];
     }
     return _backupList;
 }
@@ -82,7 +82,7 @@
         [backups filteredArrayUsingPredicate:predicate];
         
         for ( NSURL *url in backups ) {
-            VTABackupItem *item = [[VTABackupItem alloc] initWithFile:url];
+            VTABackupItem *item = [[VTABackupItem alloc] initWithURL:url name:[url lastPathComponent]];
             [_localBackupList addObject:item];
         }
     }
@@ -112,19 +112,23 @@
 //    return nil;
 //}
 
+-(NSMutableArray *)fetchBackups {
+    return [self sortBackups:self.localBackupList];
+}
+
 -(NSMutableArray *)sortBackups:(NSMutableArray *)arrayOfBackups {
     NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
     return [[arrayOfBackups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
 }
 
 -(BOOL)deleteBackupItem:(VTABackupItem *)item {
-    [self.localBackupList removeObject:item];
+    if ( item.fileURL ) [self.localBackupList removeObject:item];
     [self.backupList removeObject:item];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
-        sleep(4);
+
         dispatch_async(dispatch_get_main_queue(), ^{
             NSError *error;
-            [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
+            if ( item.fileURL ) [[NSFileManager defaultManager] removeItemAtURL:item.fileURL error:&error];
             if ( error ) {
                 if ([[NSFileManager defaultManager] fileExistsAtPath:[item.fileURL path]]) {
                     [self.localBackupList addObject:item];
@@ -149,7 +153,7 @@
 
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
-          completionHandler:(void (^)(BOOL, NSError *))completion
+          completionHandler:(void (^)(BOOL, NSError *, VTABackupItem *, BOOL))completion
              forceOverwrite:(BOOL)overwrite {
     
     // Create backup item.
@@ -178,7 +182,7 @@
     if ( !context ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No NSManagedObjectContext found. Did you forget to set the context?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
-        completion(NO, error);
+        completion(NO, error, nil, NO);
         return;
     }
     
@@ -186,14 +190,14 @@
     if ( !name ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No entity given to backup. Did you forget to set the entity name?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
-        completion(NO, error);
+        completion(NO, error, nil, NO);
         return;
     }
     
     if ( ![context save:nil] ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error saving context prior to backup"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
-        completion(NO, error);
+        completion(NO, error, nil, NO);
         return;
     }
     
@@ -246,17 +250,18 @@
         [archiver finishEncoding];
         
         VTABackupItem *newItem;
+        BOOL didOverwrite = NO;
         if ( ![data writeToFile:[backupFileForToday path] atomically:YES] ) {
             NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"Error writing to file."};
             error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSFileWriteUnknownError userInfo:errorDictionary];
         } else {
-            BOOL itemExists = NO;
+            
             for (VTABackupItem *item in self.backupList ) {
                 if ( [item.filePath isEqualToString:[backupFileForToday lastPathComponent]] ) {
-                    itemExists = YES;
+                    didOverwrite = YES;
                 }
             }
-            newItem = (!itemExists) ? [[VTABackupItem alloc] initWithFile:backupFileForToday] : nil;
+            newItem = [[VTABackupItem alloc] initWithFile:backupFileForToday];
         }
         
         // If error is set, we weren't successful
@@ -265,17 +270,22 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             self.running = NO;
             NSDictionary *userInfo;
-            if ( newItem ) {
+            VTABackupItem *item;
+            if ( !didOverwrite ) {
+                
                 [self.localBackupList addObject:newItem];
                 self.backupList = [self sortBackups:self.localBackupList];
                 NSInteger location = [self.backupList indexOfObject:newItem];
+                
+                item = [[VTABackupManager sharedManager].backupList objectAtIndex:location];
+                
                 NSIndexPath *ip = [NSIndexPath indexPathForRow:location inSection:0];
                 userInfo = @{VTABackupManagerItemListInsertedKey : @[ip]};
             }
 
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self userInfo:userInfo];
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];
-            completion(success, error);
+            completion(success, error, item, didOverwrite);
         });
         
     }];

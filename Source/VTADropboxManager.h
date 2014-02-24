@@ -41,6 +41,6 @@
  */
 @property (nonatomic, getter = isDropboxAvailable) BOOL dropboxAvailable;
 
-@property (nonatomic, readonly, getter = isDropboxEnabled) BOOL dropboxEnabled;
+@property (nonatomic) BOOL dropboxEnabled;
 
 @end

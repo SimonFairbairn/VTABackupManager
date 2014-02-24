@@ -17,11 +17,11 @@
 
 @property (nonatomic, strong) DBFilesystem *system;
 @property (nonatomic, strong) NSDateFormatter *dateFormatter;
-@property (nonatomic, strong) NSArray *backupList;
+@property (nonatomic, strong) NSMutableArray *backupList;
 
 @property (nonatomic) NSUInteger filesLeft;
 
-@property (nonatomic, readwrite, getter = isDropboxEnabled) BOOL dropboxEnabled;
+@property (nonatomic, strong) NSMutableArray *filesUpdating;
 
 /**
  *  Are we reachable?
@@ -60,6 +60,16 @@
     return _dateFormatter;
 }
 
+-(NSMutableArray *)filesUpdating {
+    if ( !_filesUpdating ) {
+        _filesUpdating = [[NSMutableArray alloc] init];
+    }
+    return _filesUpdating;
+}
+
+
+
+
 #pragma mark - Initialisation
 
 + (instancetype)sharedManager {
@@ -78,18 +88,15 @@
             _syncing = YES;
             [self setupFilesystem];
         }
-
-        __weak VTADropboxManager *weakSelf = self;
         
+        __weak VTADropboxManager *weakSelf = self;
         [self.dropboxManager addObserver:self block: ^(DBAccount *account) {
             
-            // reload backpup list
-            
             weakSelf.dropboxEnabled = account.linked;
+
 #if VTADropboxManagerDebugLog
             NSLog(@"Account is enabled: %i", weakSelf.dropboxEnabled);
             NSLog(@"Posting account changed notification");
-
 #endif
             weakSelf.backupList = nil;
             weakSelf.syncing = account.linked;
@@ -98,21 +105,30 @@
             if ( account.linked ) {
                 [weakSelf setupFilesystem];
             } else {
+                weakSelf.syncing = NO;
                 [weakSelf.hostReachability stopNotifier];
+                [DBFilesystem setSharedFilesystem:nil];
             }
         }];
-
-        
     }
     return self;
 }
 
 #pragma mark - Methods
 
+//-(NSMutableArray *)fetchBackups {
+//    if ( self.dropboxAvailable ) return nil;
+//    return [super fetchBackups];
+//}
+
 -(void)setupFilesystem {
+    
+    // Start reachability
     _hostReachability = [Reachability reachabilityForInternetConnection];
     [self reachabilityChanged:nil];
     [_hostReachability startNotifier];
+    
+    
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reachabilityChanged:) name:kReachabilityChangedNotification object:_hostReachability];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(backupCompleted:) name:VTABackupManagerBackupDidCompleteNotification object:nil];
     
@@ -138,7 +154,7 @@
 #endif
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListWillChangeNotification object:self];
             [self fetchFiles];
-
+            
         }];
     }
 }
@@ -152,7 +168,7 @@
         //                NSLog(@"Found files: %@", immContents);
 #endif
         
-//        self.backupList = [NSMutableArray arrayWithArray:immContents];
+        //        self.backupList = [NSMutableArray arrayWithArray:immContents];
         //                        [mContents sortUsingFunction:sortFileInfos context:NULL];
         
         NSMutableArray *downloadedFiles = [[NSMutableArray alloc] init];
@@ -173,21 +189,44 @@
                     [file close];
                     [downloadedFiles addObject:item];
                 } else {
-                    DBError *updateError;
-                    [file update:&updateError];
-                    if ( updateError ) {
-                        NSLog(@"Update error: %@", [updateError localizedDescription]);
-                    }
+                    
+                    __weak DBFile *weakFile = file;
                     [file addObserver:self block:^{
-                        [self reloadFiles];
+                        NSLog(@"%@", weakFile.status);
+                        NSLog(@"Progress: %f", weakFile.status.progress);
+                        NSLog(@"Newer %@", weakFile.newerStatus);
+                        NSLog(@"Newer Progress: %f", weakFile.newerStatus.progress);
+                        
+                        if ( !weakFile.newerStatus && weakFile.status.cached ) {
+                            [weakFile removeObserver:self];
+                            [self.filesUpdating removeObject:weakFile];
+                            [self fetchFiles];
+                        } else if ( weakFile.newerStatus && weakFile.newerStatus.cached ) {
+                            DBError *updateError;
+                            [weakFile update:&updateError];
+                            if ( updateError ) {
+                                NSLog(@"%@", [updateError localizedDescription]);
+                            }
+                        }
                     }];
                     
+                    if ( ![self.filesUpdating containsObject:file]) {
+                        [self.filesUpdating addObject:file];
+                    }
                     _syncing = YES;
                 }
                 
             }
         }
-        self.backupList = [NSArray arrayWithArray:downloadedFiles];
+        
+        NSMutableArray *fileList = [NSMutableArray array];
+        for (DBFileInfo *file in downloadedFiles ) {
+            VTABackupItem *item = [[VTABackupItem alloc] initWithURL:nil name:[[file.path stringValue] lastPathComponent]];
+            [fileList addObject:item];
+        }
+        self.backupList = fileList;
+        
+        NSLog(@"Files updating: %@", self.filesUpdating);
         
         dispatch_async(dispatch_get_main_queue(), ^() {
             if ( filesystemError ) {
@@ -199,18 +238,6 @@
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:filesystemError];
         });
     });
-}
-
--(void)reloadFiles {
-    DBError *filesystemError;
-    NSArray *immContents = [[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:&filesystemError];
-    NSLog(@"%@", immContents);
-    
-    
-        dispatch_async(dispatch_get_main_queue(), ^() {
-            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:nil];
-            [self fetchFiles];
-        });
 }
 
 -(void)updateStatus {
@@ -241,7 +268,7 @@
 
 -(void)backupEntityWithName:(NSString *)name
                   inContext:(NSManagedObjectContext *)context
-          completionHandler:(void (^)(BOOL, NSError *))completion
+          completionHandler:(void (^)(BOOL, NSError *, VTABackupItem *newItem, BOOL didOverwrite))completion
              forceOverwrite:(BOOL)overwrite {
     self.syncing = self.dropboxEnabled;
     [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListWillChangeNotification object:nil];
@@ -250,28 +277,44 @@
 
 -(void)backupCompleted:(NSNotificationCenter *)note {
     
-    
     if ( !self.dropboxEnabled ) {
         _syncing = NO;
         return;
     }
     
-    NSArray *localBackups = self.backupList;
+    NSArray *localBackups = nil; // self.localBackupList;
     
     NSLog(@"Local backups: %@", localBackups);
     
     for (VTABackupItem *item in localBackups ) {
         
-        for ( DBFileInfo *info in self.backupList ) {
-            if ( [[info.path stringValue] isEqualToString:[[[DBPath root] childPath:item.filePath] stringValue]] ) {
-                DBError *deleteError;
-                [[DBFilesystem sharedFilesystem] deletePath:[[DBPath root] childPath:item.filePath] error:&deleteError];
-                if ( deleteError ) {
-                    NSLog(@"Delete error: %@", [deleteError localizedDescription]);
+        if ( [self.backupList count] < 1 ) {
+            DBError *fileError;
+            DBFile *file = [[DBFilesystem sharedFilesystem] createFile:[[DBPath root] childPath:item.filePath]  error:&fileError];
+            if ( fileError ) {
+                NSLog(@"File error: %@", [fileError localizedDescription]);
+                NSLog(@"File error: %@", [fileError localizedFailureReason]);
+                NSLog(@"File error: %@", [fileError localizedRecoverySuggestion]);
+                [self fetchFiles];
+            } else {
+                DBError *writeError;
+                [file writeContentsOfFile:[item.fileURL path] shouldSteal:YES error:&writeError];
+                if ( writeError) {
+                    NSLog(@"%@", [writeError localizedDescription]);
+                    [NSException raise:DBErrorDomain format:@"Couldn't write file: %@", [writeError localizedDescription]];
                 }
             }
-            
-//            if ( ![[info.path stringValue] isEqualToString:[[[DBPath root] childPath:item.filePath] stringValue]]) {
+        } else {
+            for ( VTABackupItem *info in self.backupList ) {
+                if ( [info.filePath isEqualToString:item.filePath] ) {
+                    DBError *deleteError;
+                    [[DBFilesystem sharedFilesystem] deletePath:[[DBPath root] childPath:item.filePath] error:&deleteError];
+                    if ( deleteError ) {
+                        NSLog(@"Delete error: %@", [deleteError localizedDescription]);
+                    }
+                }
+                
+                
                 DBError *fileError;
                 DBFile *file = [[DBFilesystem sharedFilesystem] createFile:[[DBPath root] childPath:item.filePath]  error:&fileError];
                 if ( fileError ) {
@@ -284,11 +327,16 @@
                     [file writeContentsOfFile:[item.fileURL path] shouldSteal:YES error:&writeError];
                     if ( writeError) {
                         NSLog(@"%@", [writeError localizedDescription]);
+                        [NSException raise:DBErrorDomain format:@"Couldn't write file: %@", [writeError localizedDescription]];
                     }
                 }
-//            }
+                
+            }
         }
-    }    
+        
+        
+
+    }
 }
 
 -(void)restoreFromURL:(NSURL *)URL
@@ -298,7 +346,7 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
 }
 
 -(void)reachabilityChanged:(NSNotification *)note {
-
+    
     if ( self.hostReachability.currentReachabilityStatus == 0 || (self.hostReachability.currentReachabilityStatus == 2 && !self.shouldUseCellular) ) {
         _dropboxAvailable = NO;
         _syncing = NO;
@@ -309,27 +357,26 @@ withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
     [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxNetworkDidChange object:nil];
 }
 
--(BOOL)deleteBackupItem:(id)aItem {
+-(BOOL)deleteBackupItem:(VTABackupItem *)aItem {
+    BOOL deleted = [super deleteBackupItem:aItem];
     if ( self.dropboxEnabled ) {
-        if ( [aItem isKindOfClass:[VTABackupItem class]] ) {
-            return [super deleteBackupItem:aItem];
+        
+        DBError *fileInfoError;
+        DBFileInfo *item =        [[DBFilesystem sharedFilesystem] fileInfoForPath:[[DBPath root] childPath:aItem.filePath]  error:&fileInfoError];
+        if ( fileInfoError ) {
+            [NSException raise:NSInvalidArgumentException format:@"%@", [fileInfoError localizedDescription]];
         }
-        if ( [aItem isKindOfClass:[DBFileInfo class]] ) {
-            DBFileInfo *item = (DBFileInfo *)aItem;
-            DBError *deleteError;
-            [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError];
-            if ( deleteError ) {
-                NSLog(@"%@", [deleteError localizedDescription]);
-            }
-            return YES;
+        DBError *deleteError;
+        [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError];
+        if ( deleteError ) {
+            [NSException raise:NSInvalidArgumentException format:@"%@", [fileInfoError localizedDescription]];
+            NSLog(@"%@", [deleteError localizedDescription]);
         }
+        return YES;
     } else {
         _syncing = NO;
-        return [super deleteBackupItem:aItem];
     }
-    
-
-    return NO;
+    return deleted;
 }
 
 @end

@@ -13,7 +13,7 @@
 #import "VTABMStore.h"
 #import "VTADropboxManager.h"
 
-@interface VTABMBackupViewController ()
+@interface VTABMBackupViewController () <UIAlertViewDelegate>
 
 @property (nonatomic, weak ) IBOutlet UITableView *tableView;
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *activityIndicator;
@@ -40,27 +40,12 @@
 
 #pragma mark - View Lifecycle
 
--(void)viewDidLoad {
-    [super viewDidLoad];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(accountUpdated:) name:VTABackupManagerDropboxAccountDidChange object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changing) name:VTABackupManagerFileListWillChangeNotification  object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reload:) name:VTABackupManagerFileListDidChangeNotification object:nil];
-    
-    [VTADropboxManager sharedManager].backupsToKeep = @(3);
-    
-    if ( [VTADropboxManager sharedManager].isSyncing ) {
-        [self.activityIndicator startAnimating];
-    }
-}
-
 -(void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    [self reload:nil];
+    self.dropboxSwitch.on = [VTADropboxManager sharedManager].dropboxEnabled;
 }
 
 -(void)dealloc {
-    
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -71,14 +56,24 @@
     self.tableView.userInteractionEnabled = NO;
     [self.activityIndicator startAnimating];
     
-    [[VTADropboxManager sharedManager] backupEntityWithName:@"Cat" inContext:[[VTABMStore sharedStore] context] completionHandler:^(BOOL success, NSError *error) {
+    [[VTADropboxManager sharedManager] backupEntityWithName:@"Cat" inContext:[[VTABMStore sharedStore] context] completionHandler:^(BOOL success, NSError *error, VTABackupItem *item, BOOL didOverwrite) {
+        NSString *message;
+        NSString *title;
         if ( !error ) {
-            UIAlertView *view = [[UIAlertView alloc] initWithTitle:@"Backup Complete" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
-            [view show];
-            self.tableView.userInteractionEnabled = YES;
-            [self.activityIndicator stopAnimating];
+            if ( !didOverwrite ) {
+                NSInteger index = [[VTABackupManager sharedManager].backupList indexOfObject:item];                
+                if ( index < [[VTABackupManager sharedManager].backupList count] ) {
+                    [self.tableView insertRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:index inSection:0]] withRowAnimation:UITableViewRowAnimationAutomatic];
+                }
+            }
+            title = @"Backup Complete";
+        } else {
+            title = @"Error";
+            message = [error localizedDescription];
         }
-        [self.tableView reloadData];
+        [[[UIAlertView alloc] initWithTitle:title  message:message delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil] show];
+        self.tableView.userInteractionEnabled = YES;
+        [self.activityIndicator stopAnimating];
     } forceOverwrite:YES];
 }
 
@@ -101,26 +96,8 @@
 }
 
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"backupCell"];
-    
-    id itemPre = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
-
-    if ( [itemPre isKindOfClass:[VTABackupItem class]] ) {
-        VTABackupItem *item = (VTABackupItem *)itemPre;
-        cell.textLabel.text = [self.dateFormatter stringFromDate:item.dateStringAsDate];
-        cell.detailTextLabel.text = item.deviceName;
-    } else {
-        DBFileInfo *file = (DBFileInfo *)itemPre;
-        cell.textLabel.text = [file.path stringValue];
-    }
-    
-    return cell;
-
-    
-    
     VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
-    
     cell.textLabel.text = [self.dateFormatter stringFromDate:item.dateStringAsDate];
     cell.detailTextLabel.text = item.deviceName;
     return cell;
@@ -137,14 +114,11 @@
 }
 
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    
     [self.activityIndicator startAnimating];
     VTABackupItem *backup = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
-    
     [[VTADropboxManager sharedManager] restoreItem:backup
                            intoContext:[[VTABMStore sharedStore] context]
                withCompletitionHandler:^(BOOL success, NSError *error) {
-
         if ( error ) {
             
         } else {
@@ -155,37 +129,7 @@
         }
 
     }];
-
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
-}
-
-#pragma mark - Methods
-
-- (void)accountUpdated:(DBAccount *)account {
-    if (![VTADropboxManager sharedManager].isDropboxEnabled) {
-        [[[UIAlertView alloc] initWithTitle:@"Unlinked" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] show];
-        [self reload:nil];
-    } else {
-        [self reload:nil];
-    }
-}
-
--(void)reload:(NSNotification *)note {
-    self.dropboxSwitch.on = [VTADropboxManager sharedManager].isDropboxEnabled;
-    ( [VTADropboxManager sharedManager].isSyncing ) ? [self.activityIndicator startAnimating] : [self.activityIndicator stopAnimating];
-
-    NSDictionary *userInfo = [note userInfo];
-    if  ( [userInfo objectForKey:VTABackupManagerItemListInsertedKey] ) {
-        [self.tableView insertRowsAtIndexPaths:[userInfo objectForKey:VTABackupManagerItemListInsertedKey] withRowAnimation:UITableViewRowAnimationAutomatic];
-    } else {
-        [self.tableView reloadData];
-    }
-    
-
-}
-
--(void)changing {
-    [self.activityIndicator startAnimating];
 }
 
 @end

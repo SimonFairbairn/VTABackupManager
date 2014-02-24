@@ -54,9 +54,25 @@
         
         NSError *error;
         
-        if ( ![_coordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:[self storePath] options:nil error:&error]) {
-            [NSException raise:@"Open Failed" format:@"Reason: %@", [error localizedDescription]];
+        if ( self.testContext ) {
+            if ( ![_coordinator addPersistentStoreWithType:NSInMemoryStoreType
+                                             configuration:nil
+                                                       URL:nil
+                                                   options:nil
+                                                     error:&error]) {
+                [NSException raise:@"Open Failed" format:@"Reason: %@", [error localizedDescription]];
+            }
+        } else {
+            if ( ![_coordinator addPersistentStoreWithType:NSSQLiteStoreType
+                                             configuration:nil
+                                                       URL:[self storePath]
+                                                   options:nil
+                                                     error:&error]) {
+                [NSException raise:@"Open Failed" format:@"Reason: %@", [error localizedDescription]];
+            }
+            
         }
+        
         
     }
     return _coordinator;
@@ -76,6 +92,14 @@
         _backgroundContext.persistentStoreCoordinator = self.coordinator;
     }
     return _backgroundContext;
+}
+
+-(void)setTestContext:(BOOL)testContext {
+    _testContext = testContext;
+    self.coordinator = nil;
+    self.context = nil;
+    self.backgroundContext = nil;
+    self.model = nil;
 }
 
 #pragma mark - Initialisation
@@ -253,5 +277,16 @@
     [[NSFileManager defaultManager] removeItemAtURL:[self storePath] error:nil];
 }
 
+-(NSArray *)allCats {
+    NSLog(@"Fetching cats");
+    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Cat"];
+    
+    NSError *error;
+    NSArray *allCats = [self.context executeFetchRequest:request error:&error];
+    if ( error ) {
+        [NSException raise:@"Couldn't fetch cats" format:@"Reason: %@", [error localizedDescription]];
+    }
+    return allCats;
+}
 
 @end

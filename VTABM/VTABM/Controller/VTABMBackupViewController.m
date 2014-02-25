@@ -15,6 +15,8 @@
 
 @interface VTABMBackupViewController () <UIAlertViewDelegate>
 
+@property (nonatomic, strong) NSMutableArray *backupList;
+
 @property (nonatomic, weak ) IBOutlet UITableView *tableView;
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *activityIndicator;
 
@@ -29,7 +31,6 @@
 #pragma mark - Properties
 
 -(NSDateFormatter *)dateFormatter {
-    
     if ( !_dateFormatter ) {
         _dateFormatter = [[NSDateFormatter alloc] init];
         _dateFormatter.dateStyle = NSDateFormatterMediumStyle;
@@ -38,16 +39,41 @@
     return _dateFormatter;
 }
 
+/**
+ *  1. Lazily instantiated property that fetches all of the backups from the manager
+ */
+-(NSMutableArray *)backupList {
+    if ( !_backupList ) {
+        _backupList = [self sortBackups:[[VTADropboxManager sharedManager] allBackups]];
+    }
+    return _backupList;
+}
+
 #pragma mark - View Lifecycle
 
 -(void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    
+    /**
+     *  3. Find out if Dropbox is enabled or not
+     */
     self.dropboxSwitch.on = [VTADropboxManager sharedManager].dropboxEnabled;
 }
 
 -(void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
+
+#pragma mark - Methods
+
+/**
+ *  2. Optionally sort the backups (in this case by dateString).
+ */
+-(NSMutableArray *)sortBackups:(NSArray *)backups {
+    NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
+    return [[backups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
+}
+
 
 #pragma mark - Actions
 
@@ -56,15 +82,23 @@
     self.tableView.userInteractionEnabled = NO;
     [self.activityIndicator startAnimating];
     
-    [[VTADropboxManager sharedManager] backupEntityWithName:@"Cat" inContext:[[VTABMStore sharedStore] context] completionHandler:^(BOOL success, NSError *error, VTABackupItem *item, BOOL didOverwrite) {
+    /**
+     * 4.   To run a backup, call this method with a completion handler. The method will return a new backup item, together with
+     *      a flag letting you know whether or not a file with the same name was overwritten. You can then update your local
+     *      backup list reference and update the tableview.
+     */
+    [[VTADropboxManager sharedManager] backupEntityWithName:@"Cat"
+                                                  inContext:[[VTABMStore sharedStore] context]
+                                          completionHandler:^(BOOL success, NSError *error, VTABackupItem *item, BOOL didOverwrite) {
         NSString *message;
         NSString *title;
+                                              
         if ( !error ) {
             if ( !didOverwrite ) {
-                NSInteger index = [[VTABackupManager sharedManager].backupList indexOfObject:item];                
-                if ( index < [[VTABackupManager sharedManager].backupList count] ) {
-                    [self.tableView insertRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:index inSection:0]] withRowAnimation:UITableViewRowAnimationAutomatic];
-                }
+                [self.backupList addObject:item];
+                self.backupList = [self sortBackups:[self.backupList copy]];
+                NSInteger index = [self.backupList indexOfObject:item];
+                [self.tableView insertRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:index inSection:0]] withRowAnimation:UITableViewRowAnimationAutomatic];
             }
             title = @"Backup Complete";
         } else {
@@ -74,7 +108,8 @@
         [[[UIAlertView alloc] initWithTitle:title  message:message delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil] show];
         self.tableView.userInteractionEnabled = YES;
         [self.activityIndicator stopAnimating];
-    } forceOverwrite:YES];
+    }
+                                             forceOverwrite:YES];
 }
 
 -(IBAction)deleteStore:(UIButton *)sender {
@@ -91,13 +126,17 @@
 
 #pragma mark - UITableViewDataSource 
 
+
+/**
+ *  3. Use our own local array of backups to manage the table view. 
+ */
 -(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return [[VTADropboxManager sharedManager].backupList count];
+    return [self.backupList count];
 }
 
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"backupCell"];
-    VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
+    VTABackupItem *item = [self.backupList objectAtIndex:indexPath.row];
     cell.textLabel.text = [self.dateFormatter stringFromDate:item.dateStringAsDate];
     cell.detailTextLabel.text = item.deviceName;
     return cell;
@@ -107,7 +146,8 @@
 
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
     if (editingStyle == UITableViewCellEditingStyleDelete) {
-        VTABackupItem *item = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
+        VTABackupItem *item = [self.backupList objectAtIndex:indexPath.row];
+        [self.backupList removeObject:item];
         [[VTADropboxManager sharedManager] deleteBackupItem:item];
         [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
     }
@@ -115,7 +155,7 @@
 
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [self.activityIndicator startAnimating];
-    VTABackupItem *backup = [[VTADropboxManager sharedManager].backupList objectAtIndex:indexPath.row];
+    VTABackupItem *backup = [self.backupList objectAtIndex:indexPath.row];
     [[VTADropboxManager sharedManager] restoreItem:backup
                            intoContext:[[VTABMStore sharedStore] context]
                withCompletitionHandler:^(BOOL success, NSError *error) {
@@ -125,9 +165,7 @@
             UIAlertView *view = [[UIAlertView alloc] initWithTitle:@"Restore Complete" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
             [view show];
             [self.activityIndicator stopAnimating];
-            
         }
-
     }];
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
 }

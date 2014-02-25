@@ -112,6 +112,10 @@
 //    return nil;
 //}
 
+-(NSArray *)allBackups {
+    return [[self sortBackups:self.localBackupList] copy];
+}
+
 -(NSMutableArray *)fetchBackups {
     return [self sortBackups:self.localBackupList];
 }
@@ -161,8 +165,10 @@
     
     // The URL for today's file
     NSURL *backupFileForToday = [self.backupDirectory URLByAppendingPathComponent:[VTABackupItem newFileNameWithExtension:self.backupExtension]];
-    
+
+#if VTABackupManagerDebugLog
     NSLog(@"Backup file for today: %@", backupFileForToday);
+#endif
     
     // If we've already backed up today and we're not forcing an overwrite, we need go no further
     if ( !overwrite ) {
@@ -178,14 +184,15 @@
         
     }
     
-    // Perform some sanity checking to prevent crashes
+    /**
+     *  We need a context and an entity name and we need to be able to save the context before continuing.
+     */
     if ( !context ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No NSManagedObjectContext found. Did you forget to set the context?"};
         NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:NSCoreDataError  userInfo:errorDictionary];
         completion(NO, error, nil, NO);
         return;
     }
-    
     
     if ( !name ) {
         NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"No entity given to backup. Did you forget to set the entity name?"};
@@ -201,6 +208,9 @@
         return;
     }
     
+    /**
+     *  If we reach this far, we know that a backup will run.
+     */
     self.running = YES;
     
     
@@ -266,30 +276,26 @@
         
         // If error is set, we weren't successful
         success = ( error ) ? NO : YES;
-        
+
+        VTABackupItem *item;
+        if ( !didOverwrite ) {
+            [self.localBackupList addObject:newItem];
+            item = [self getLatestItemFromItem:newItem];
+        }        
         dispatch_async(dispatch_get_main_queue(), ^{
             self.running = NO;
-            NSDictionary *userInfo;
-            VTABackupItem *item;
-            if ( !didOverwrite ) {
-                
-                [self.localBackupList addObject:newItem];
-                self.backupList = [self sortBackups:self.localBackupList];
-                NSInteger location = [self.backupList indexOfObject:newItem];
-                
-                item = [[VTABackupManager sharedManager].backupList objectAtIndex:location];
-                
-                NSIndexPath *ip = [NSIndexPath indexPathForRow:location inSection:0];
-                userInfo = @{VTABackupManagerItemListInsertedKey : @[ip]};
-            }
-
-            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self userInfo:userInfo];
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];
             completion(success, error, item, didOverwrite);
         });
         
     }];
-    
+}
+
+-(VTABackupItem *)getLatestItemFromItem:(VTABackupItem *)newItem {
+    self.backupList = [self sortBackups:self.localBackupList];
+    NSInteger location = [self.backupList indexOfObject:newItem];
+    return [[VTABackupManager sharedManager].backupList objectAtIndex:location];
 }
 
 -(void)deleteOldBackups {

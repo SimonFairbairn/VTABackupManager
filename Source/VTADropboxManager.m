@@ -261,6 +261,7 @@
 
 -(void)moveToDropbox:(NSNotificationCenter *)note {
     // Something on the local file system has changed, so we need to go through the backup array and move any new ones to Dropbox
+
 }
 
 
@@ -272,7 +273,9 @@
              forceOverwrite:(BOOL)overwrite {
     self.syncing = self.dropboxEnabled;
     [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListWillChangeNotification object:nil];
-    [super backupEntityWithName:name inContext:context completionHandler:completion forceOverwrite:overwrite];
+    [super backupEntityWithName:name inContext:context completionHandler:^(BOOL success, NSError *error, VTABackupItem *newItem, BOOL didOverwrite) {
+        completion(success, error, newItem, didOverwrite);
+    }  forceOverwrite:overwrite];
 }
 
 -(void)backupCompleted:(NSNotificationCenter *)note {

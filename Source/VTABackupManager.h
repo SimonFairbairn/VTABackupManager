@@ -89,4 +89,7 @@ withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
  */
 -(BOOL)deleteBackupItem:(VTABackupItem *)item;
 
+
+-(NSArray *)allBackups;
+
 @end

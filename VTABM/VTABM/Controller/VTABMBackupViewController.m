@@ -163,19 +163,17 @@
  *  Sent if the Dropbox account status changes
  */
 -(void)dropboxAccountDidChange:(NSNotification *)note {
-    self.backupList = [[[VTADropboxManager sharedManager] allBackups] mutableCopy];
+    self.backupList = [self sortBackups:[[VTADropboxManager sharedManager] allBackups]];
     [self.tableView reloadData];
 }
 
 #pragma mark - KVO
 
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-    NSLog(@"Value changed (%@) for key path: %@", change, keyPath);
     [self backupStateDidChange:nil];
     if ( [keyPath isEqualToString:@"dropboxAvailable"] ) {
         [self checkNetwork];
     }
-
 }
 
 -(void)checkNetwork {
@@ -185,7 +183,6 @@
         }
     }
 }
-
 
 #pragma mark - UITableViewDataSource 
 

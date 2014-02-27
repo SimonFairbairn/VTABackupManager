@@ -22,7 +22,7 @@
 
 #import "VTABackupManager.h"
 
-#define VTABackupManagerDebugLog 1
+#define VTABackupManagerDebugLog 0
 
 NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerBackupStateDidChangeNotification";
 
@@ -120,6 +120,12 @@ NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerB
 
 -(NSMutableArray *)fetchBackups {
     return [self sortBackups:self.localBackupList];
+}
+
+-(void)reloadBackups {
+    self.localBackupList = nil;
+    
+    NSLog(@"Backups reloaded: %@", self.localBackupList);
 }
 
 -(NSMutableArray *)sortBackups:(NSMutableArray *)arrayOfBackups {

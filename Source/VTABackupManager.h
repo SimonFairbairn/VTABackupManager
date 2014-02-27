@@ -99,6 +99,6 @@ withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
 
 -(NSArray *)allBackups;
 
-
+-(void)reloadBackups;
 
 @end

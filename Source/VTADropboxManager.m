@@ -25,9 +25,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 @property (nonatomic, strong) NSMutableArray *fileList;
 
-@property (nonatomic) NSUInteger filesLeft;
-
-
+@property (nonatomic, strong) NSMutableDictionary *fileTable;
 
 /**
  *  Are we reachable?
@@ -37,16 +35,13 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 @end
 
 @implementation VTADropboxManager {
-
+    BOOL _restoreInProgress;
 }
 
 #pragma mark - Properties
 
 -(DBAccountManager *)dropboxManager {
     if ( ![DBAccountManager sharedManager] ) {
-#if VTADropboxManagerDebugLog
-        NSLog(@"Setting up Manager");
-#endif
         DBAccountManager *manager = [[DBAccountManager alloc] initWithAppKey:VTABMDropboxKey secret:VTABMDropboxSecret];
         [DBAccountManager setSharedManager:manager];
     }
@@ -90,6 +85,13 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     return _fileList;
 }
 
+-(NSMutableDictionary *)fileTable {
+    if ( !_fileTable ) {
+        _fileTable = [[NSMutableDictionary alloc] init];
+    }
+    return _fileTable;
+}
+
 #pragma mark - Initialisation
 
 + (instancetype)sharedManager {
@@ -113,12 +115,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         [self.dropboxManager addObserver:self block: ^(DBAccount *account) {
             
             weakSelf.dropboxEnabled = account.linked;
-
-#if VTADropboxManagerDebugLog
-            NSLog(@"Account is enabled: %i", weakSelf.dropboxEnabled);
-            NSLog(@"Posting account changed notification");
-#endif
-            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxAccountDidChangeNotification object:nil];
             
             if ( account.linked ) {
                 weakSelf.syncing = YES;
@@ -126,8 +122,11 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
             } else {
                 weakSelf.syncing = NO;
                 [weakSelf.hostReachability stopNotifier];
+                weakSelf.fileTable = nil;
+                [super reloadBackups];
                 [DBFilesystem setSharedFilesystem:nil];
             }
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxAccountDidChangeNotification object:nil];
         }];
     }
     return self;
@@ -158,82 +157,123 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         DBFilesystem *system = [[DBFilesystem alloc] initWithAccount:[self.dropboxManager linkedAccount]];
         [DBFilesystem setSharedFilesystem:system];
         
-#if VTADropboxManagerDebugLog
-        NSLog(@"Enabling file system");
-#endif
-        
         if ( system.completedFirstSync ) {
-            NSLog(@"First sync already completed. Fetching files.");
-
             [self setupFiles];
-            
             [system addObserver:self forPathAndChildren:[DBPath root] block:^{
-
-#if VTADropboxManagerDebugLog
-                NSLog(@"Completed first sync observer: in the root path or one of its children changed.");
-#endif
-
                 [self updateFiles];
-                
             }];
         } else {
             __weak DBFilesystem *weakSystem = system;
             [system addObserver:self block:^{
                 if ( weakSystem.completedFirstSync ) {
-                    NSLog(@"Completed first sync. Fetching files.");
-                    [weakSystem removeObserver:self];
 
+                    [weakSystem removeObserver:self];
                     [self setupFiles];
                     
                     [weakSystem addObserver:self forPathAndChildren:[DBPath root] block:^{
-#if VTADropboxManagerDebugLog
-                        NSLog(@"System not ready observer: path or one of its children changed.");
-#endif
-
                         [self updateFiles];
-                        
                     }];
                     
                 }
             }];
         }
+    }
+}
 
+-(void)checkSyncStatus {
+
+    BOOL localSyncing = NO;
+    for (NSString *key in self.fileTable) {
+        DBFile *file = [self.fileTable objectForKey:key];
+        
+        if ( !file.status.cached || file.newerStatus ) {
+            localSyncing = YES;
+        }
+    }
+    if ( !localSyncing ) {
+        self.syncing = NO;
     }
 }
 
 -(void)setupFiles {
-
+    
     self.syncing = YES;
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
-    
+        
         DBError *filesystemError;
         self.fileList = [[[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:&filesystemError] mutableCopy];
         
-#if VTADropboxManagerDebugLog
-        NSLog(@"Initial files: %@", self.fileList);
-#endif
-      
         self.dropboxBackups = [[NSMutableArray alloc] init];
+        
         
         for (DBFileInfo *info in self.fileList) {
             VTABackupItem *item = [[VTABackupItem alloc] initWithURL:nil name:[[info.path stringValue] lastPathComponent]];
             [self.dropboxBackups addObject:item];
+            
+            [self trackDBFile:info fromItem:item];
         }
         
+        /**
+         *  Move any existing local backups to Dropbox
+         */
         for ( VTABackupItem *item in [super allBackups] ) {
             [self sendItemToDropbox:item];
         }
         
+        NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
+        NSMutableArray *dropboxBackups = [[self.dropboxBackups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
+        if ( [dropboxBackups count] > [self.backupsToKeep integerValue]) {
+            for (NSInteger idx = [self.backupsToKeep integerValue]; idx < [dropboxBackups count]; idx++) {
+                [self deleteBackupItem:[dropboxBackups objectAtIndex:idx]];
+            }
+        }
+        
         dispatch_async(dispatch_get_main_queue(), ^() {
+            [self checkSyncStatus];
             if ( filesystemError ) {
-#if VTADropboxManagerDebugLog
-                NSLog(@"Error: %@", [filesystemError localizedDescription]);
-#endif
+                [NSException raise:DBErrorDomain format:@"File system error: %@", [filesystemError localizedDescription]];
             }
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxListDidChangeNotification object:filesystemError];
         });
     });
+}
+
+-(void)trackDBFile:(DBFileInfo *)info fromItem:(VTABackupItem *)item  {
+    DBError *openError;
+    
+    DBFile *file = [self.fileTable objectForKey:item.filePath];
+    
+    if ( !file || !file.open ) {
+        file = [[DBFilesystem sharedFilesystem] openFile:info.path error:&openError];
+    }
+
+    if (!file) return;
+    
+    [self.fileTable setObject:file forKey:item.filePath];
+    
+    __weak DBFile *weakFile = file;
+    [file addObserver:self block:^{
+        
+#if VTADropboxManagerDebugLog
+//        NSLog(@"-----------------");
+//        NSLog(@"File: %@", weakFile.info.path);
+//        NSLog(@"Status: %@", weakFile.status);
+//        NSLog(@"Cached: %i", weakFile.status.cached);
+//        NSLog(@"Newer status: %@", weakFile.newerStatus);
+//        NSLog(@"Cached: %i", weakFile.newerStatus.cached);
+//        NSLog(@"-----------------");
+#endif
+        
+        if ( weakFile.newerStatus ) {
+            [weakFile update:nil];
+        }
+        if ( weakFile.status.cached && !weakFile.newerStatus ) {
+            dispatch_async(dispatch_get_main_queue(), ^() {
+                [self checkSyncStatus];
+            });
+        }
+    }];
 }
 
 -(void)updateFiles {
@@ -242,7 +282,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
         DBError *filesystemError;
         NSMutableArray *immContents = [[[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:&filesystemError] mutableCopy];
-
+        
         NSMutableArray *addList = [immContents mutableCopy];
         NSMutableArray *deleteList = [self.fileList mutableCopy];
         
@@ -250,10 +290,12 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         [deleteList removeObjectsInArray:immContents];
         
         NSMutableArray *localBackupList = [self.dropboxBackups mutableCopy];
-
+        
         for ( DBFileInfo *addInfo in addList ) {
             VTABackupItem *item = [[VTABackupItem alloc] initWithURL:nil name:[[addInfo.path stringValue] lastPathComponent]];
             [self.dropboxBackups addObject:item];
+            
+            [self trackDBFile:addInfo fromItem:item];
         }
         [localBackupList enumerateObjectsUsingBlock:^(VTABackupItem *item, NSUInteger idx, BOOL *stop) {
             for ( DBFileInfo *deleteInfo in deleteList) {
@@ -263,12 +305,18 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
             }
         }];
         
+        NSLog(@"------------------");
+        NSLog(@"%@", self.fileList);
+        NSLog(@"%@", self.fileTable);
+        NSLog(@"%@", self.dropboxBackups);
+        
+        
+        self.fileList = immContents;
+        
         dispatch_async(dispatch_get_main_queue(), ^() {
+            [self checkSyncStatus];
             if ( filesystemError ) {
-#if VTADropboxManagerDebugLog
-                NSLog(@"Error: %@", [filesystemError localizedDescription]);
-                NSLog(@"Posting file system changed notification");
-#endif
+                [NSException raise:DBErrorDomain format:@"File system error: %@", [filesystemError localizedDescription]];
             }
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxListDidChangeNotification object:filesystemError];
         });
@@ -277,10 +325,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 
 -(void)sendItemToDropbox:(VTABackupItem *)item {
-
-#if VTADropboxManagerDebugLog
-    NSLog(@"Sending item to Dropbox: %@", item);
-#endif
     
     if ( !item ) {
         return;
@@ -288,41 +332,31 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     
     self.syncing = YES;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
-       
+        
         DBError *fileError;
         DBError *writeError;
         DBError *openError;
         
-        DBFile *file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath] error:&openError];
+        DBFile *file = [self.fileTable objectForKey:item.filePath];
+        
+        if ( !file || !file.open ) {
+            file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath] error:&openError];
+        }
         
         if ( !file ) {
             file = [[DBFilesystem sharedFilesystem] createFile:[[DBPath root] childPath:item.filePath]  error:&fileError];
         }
         
         if ( fileError ) {
-            NSLog(@"%@", [fileError localizedDescription]);
+            [NSException raise:DBErrorDomain format:@"Dropbox file error: %@", [fileError localizedDescription]];
         }
         
-        [file writeContentsOfFile:[item.fileURL path] shouldSteal:YES error:&writeError];
-        
-        if ( writeError) {
-            NSLog(@"%@", [writeError localizedDescription]);
+        if ( ![file writeContentsOfFile:[item.fileURL path] shouldSteal:YES error:&writeError] ) {
             [NSException raise:DBErrorDomain format:@"Couldn't write file: %@", [writeError localizedDescription]];
+        } else {
+//            [self.fileTable setObject:file forKey:item.filePath];
         }
-        
-        __weak DBFile *weakFile = file;
-        [file addObserver:self block:^{
-            NSLog(@"%@", weakFile.status);
-            NSLog(@"Progress: %f", weakFile.status.progress);
-            NSLog(@"Newer %@", weakFile.newerStatus);
-            NSLog(@"Newer Progress: %f", weakFile.newerStatus.progress);
-        }];
     });
-    
-    
-    
-
-    
 }
 
 -(void)moveLocalFilesToDropbox {
@@ -330,8 +364,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         [self sendItemToDropbox:localItem];
     }
 }
-
-
 
 -(void)updateStatus {
     DBAccount *account = [self.dropboxManager linkedAccount];
@@ -345,7 +377,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 -(BOOL)handleOpenURL:(NSURL *)url {
     DBAccount *account = [[DBAccountManager sharedManager] handleOpenURL:url];
     if (account) {
-        NSLog(@"App linked successfully!");
         return YES;
     }
     return NO;
@@ -359,35 +390,55 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
              forceOverwrite:(BOOL)overwrite {
     [super backupEntityWithName:name inContext:context completionHandler:^(BOOL success, NSError *error, VTABackupItem *newItem, BOOL didOverwrite) {
         
-        if ( didOverwrite ) {
-            [self moveLocalFilesToDropbox];
-        } else {
-            [self sendItemToDropbox:newItem];
+        
+        if ( self.dropboxEnabled ) {
+            if ( !didOverwrite ) {
+                [self sendItemToDropbox:newItem];
+            }
         }
         
-
         completion(success, error, newItem, didOverwrite);
+        if ( didOverwrite ) {
+            [self moveLocalFilesToDropbox];
+        }
     }  forceOverwrite:overwrite];
 }
 
 
 -(void)restoreItem:(VTABackupItem *)item intoContext:(NSManagedObjectContext *)context withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
+    
+    if ( _restoreInProgress ) return;
+    _restoreInProgress = YES;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
 
-    DBFile *file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath]  error:nil];
-    NSData *data = [file readData:nil];
-    
-    NSURL *localURL = [[[[NSFileManager defaultManager] URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask] objectAtIndex:0] URLByAppendingPathComponent:item.filePath];
-    
-    // Time to archive the results
-    if ( ![data writeToFile:[localURL path]  atomically:YES] ) {
-        NSLog(@"ERROR: Couldn’t write file");
-    }
-    VTABackupItem *localItem = [[VTABackupItem alloc] initWithURL:localURL name:item.fileName];
-    
-    [super restoreItem:localItem intoContext:context withCompletitionHandler:^(BOOL success, NSError *error) {
-        [[NSFileManager defaultManager] removeItemAtURL:localURL error:nil];
-        completion(success, error);
-    }];
+        VTABackupItem *localItem  = item;
+        NSURL *localURL = item.fileURL;
+        if ( self.dropboxEnabled ) {
+            
+            DBFile *file = [self.fileTable objectForKey:item.filePath];
+            
+            if ( !file || !file.open ) {
+                file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath]  error:nil];
+            }
+            
+            NSData *data = [file readData:nil];
+            
+            localURL = [[[[NSFileManager defaultManager] URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask] objectAtIndex:0] URLByAppendingPathComponent:item.filePath];
+            
+            // Time to archive the results
+            if ( ![data writeToFile:[localURL path]  atomically:YES] ) {
+                NSLog(@"ERROR: Couldn’t write file");
+            }
+            localItem = [[VTABackupItem alloc] initWithURL:localURL name:item.fileName];
+        }
+        
+  
+        [super restoreItem:localItem intoContext:context withCompletitionHandler:^(BOOL success, NSError *error) {
+            [[NSFileManager defaultManager] removeItemAtURL:localURL error:nil];
+            _restoreInProgress = NO;
+            completion(success, error);
+        }];
+    });
 }
 
 -(void)reachabilityChanged:(NSNotification *)note {
@@ -403,16 +454,21 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 -(BOOL)deleteBackupItem:(VTABackupItem *)aItem {
     if ( self.dropboxEnabled ) {
         
+        DBFile *file = [self.fileTable objectForKey:aItem.filePath];
+        [file removeObserver:self];
+        [file close];
+        [self.fileTable removeObjectForKey:aItem.filePath];
+        
         DBError *fileInfoError;
         DBFileInfo *item =        [[DBFilesystem sharedFilesystem] fileInfoForPath:[[DBPath root] childPath:aItem.filePath]  error:&fileInfoError];
         if ( fileInfoError ) {
             [NSException raise:NSInvalidArgumentException format:@"%@", [fileInfoError localizedDescription]];
         }
+        
         DBError *deleteError;
         [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError];
         if ( deleteError ) {
             [NSException raise:NSInvalidArgumentException format:@"%@", [fileInfoError localizedDescription]];
-            NSLog(@"%@", [deleteError localizedDescription]);
         }
         return YES;
     } else {

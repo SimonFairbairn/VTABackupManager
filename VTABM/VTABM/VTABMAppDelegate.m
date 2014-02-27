@@ -17,7 +17,7 @@
 {
     // Override point for customization after application launch.
     
-    [VTADropboxManager sharedManager].useCellular = NO;
+    [VTADropboxManager sharedManager].backupsToKeep  = @(5);
     return YES;
 }
 							

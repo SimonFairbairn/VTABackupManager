@@ -36,6 +36,7 @@
 		F454060C1802D36400F50C1D /* VTABMFetchedResultsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F454060B1802D36400F50C1D /* VTABMFetchedResultsTableViewController.m */; };
 		F474B7CC18AF3EEF0007E238 /* VTADropboxManager.m in Sources */ = {isa = PBXBuildFile; fileRef = F474B7CB18AF3EEF0007E238 /* VTADropboxManager.m */; };
 		F4788CAF1848A43F005DB095 /* VTABackupItem.m in Sources */ = {isa = PBXBuildFile; fileRef = F4788CAE1848A43F005DB095 /* VTABackupItem.m */; };
+		F4948E0318BF176700F233AF /* defaultBackup.vtabackup in Resources */ = {isa = PBXBuildFile; fileRef = F4948E0218BF176700F233AF /* defaultBackup.vtabackup */; };
 		F4B6F74918B32FC200987B99 /* Reachability.m in Sources */ = {isa = PBXBuildFile; fileRef = F4B6F74818B32FC200987B99 /* Reachability.m */; };
 		F4B6F74C18B332DE00987B99 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F4B6F74B18B332DE00987B99 /* Security.framework */; };
 		F4B6F74E18B332EA00987B99 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F4B6F74D18B332EA00987B99 /* QuartzCore.framework */; };
@@ -106,6 +107,7 @@
 		F474B7CB18AF3EEF0007E238 /* VTADropboxManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VTADropboxManager.m; sourceTree = "<group>"; };
 		F4788CAD1848A43F005DB095 /* VTABackupItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VTABackupItem.h; sourceTree = "<group>"; };
 		F4788CAE1848A43F005DB095 /* VTABackupItem.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VTABackupItem.m; sourceTree = "<group>"; };
+		F4948E0218BF176700F233AF /* defaultBackup.vtabackup */ = {isa = PBXFileReference; lastKnownFileType = file.bplist; path = defaultBackup.vtabackup; sourceTree = "<group>"; };
 		F4B6F74718B32FC200987B99 /* Reachability.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Reachability.h; sourceTree = "<group>"; };
 		F4B6F74818B32FC200987B99 /* Reachability.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Reachability.m; sourceTree = "<group>"; };
 		F4B6F74A18B32FE800987B99 /* DropboxCredentials.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DropboxCredentials.h; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 		F45405AE1802AD8D00F50C1D = {
 			isa = PBXGroup;
 			children = (
+				F4948E0218BF176700F233AF /* defaultBackup.vtabackup */,
 				F45405C01802AD8D00F50C1D /* VTABM */,
 				F45405DF1802AD8D00F50C1D /* VTABMTests */,
 				F45405B91802AD8D00F50C1D /* Frameworks */,
@@ -376,6 +379,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4948E0318BF176700F233AF /* defaultBackup.vtabackup in Resources */,
 				F45405D31802AD8D00F50C1D /* Images.xcassets in Resources */,
 				F45405C51802AD8D00F50C1D /* InfoPlist.strings in Resources */,
 				F45405CE1802AD8D00F50C1D /* Main.storyboard in Resources */,

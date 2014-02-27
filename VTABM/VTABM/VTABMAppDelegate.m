@@ -17,6 +17,15 @@
 {
     // Override point for customization after application launch.
     
+    NSURL *url = [[NSBundle mainBundle] URLForResource:@"defaultBackup" withExtension:@"vtabackup"];
+    
+    NSURL *newUrl = [[[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] objectAtIndex:0] URLByAppendingPathComponent:@"backups" isDirectory:YES];
+
+    NSURL *testBackup1 = [newUrl URLByAppendingPathComponent:@"2014-02-18--iPad--7AC1978D-21B9-4C5F-A56C-50A305512E30.vtabackup"];
+    
+    [[NSFileManager defaultManager] copyItemAtURL:url toURL:testBackup1 error:nil];
+    
+    
     [VTADropboxManager sharedManager].backupsToKeep  = @(5);
     return YES;
 }
@@ -25,6 +34,9 @@
 {
     // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
     // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
+    
+    
+    
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application

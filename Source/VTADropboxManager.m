@@ -196,6 +196,8 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 }
 
 -(void)setupFiles {
+
+    NSLog(@"%s begun", __PRETTY_FUNCTION__);
     
     self.syncing = YES;
     
@@ -223,13 +225,15 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         
         NSSortDescriptor *dateStringSortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"dateString" ascending:NO selector:@selector(localizedCaseInsensitiveCompare:)];
         NSMutableArray *dropboxBackups = [[self.dropboxBackups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
-        if ( [dropboxBackups count] > [self.backupsToKeep integerValue]) {
-            for (NSInteger idx = [self.backupsToKeep integerValue]; idx < [dropboxBackups count]; idx++) {
+        if ( (NSInteger)[dropboxBackups count] > [self.backupsToKeep integerValue]) {
+            for (NSUInteger idx = [self.backupsToKeep integerValue]; idx < [dropboxBackups count]; idx++) {
                 [self deleteBackupItem:[dropboxBackups objectAtIndex:idx]];
             }
         }
-        
+        NSLog(@"Setting up files completed");
         dispatch_async(dispatch_get_main_queue(), ^() {
+            NSLog(@"Setting up files returned to main thread");
+            
             [self checkSyncStatus];
             if ( filesystemError ) {
                 [NSException raise:DBErrorDomain format:@"File system error: %@", [filesystemError localizedDescription]];
@@ -278,8 +282,11 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 -(void)updateFiles {
     
+    NSLog(@"%s begun", __PRETTY_FUNCTION__);
+    
     self.syncing = YES;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
+        NSLog(@"%s in %@ thread", __PRETTY_FUNCTION__, [NSThread currentThread]);
         DBError *filesystemError;
         NSMutableArray *immContents = [[[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:&filesystemError] mutableCopy];
         
@@ -313,7 +320,12 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         
         self.fileList = immContents;
         
+        NSLog(@"%s in %@ thread complete", __PRETTY_FUNCTION__, [NSThread currentThread]);
+        
         dispatch_async(dispatch_get_main_queue(), ^() {
+            
+            NSLog(@"%s in %@ thread", __PRETTY_FUNCTION__, [NSThread currentThread]);
+            
             [self checkSyncStatus];
             if ( filesystemError ) {
                 [NSException raise:DBErrorDomain format:@"File system error: %@", [filesystemError localizedDescription]];

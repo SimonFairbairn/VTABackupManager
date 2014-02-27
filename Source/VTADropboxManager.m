@@ -170,11 +170,14 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     
     if ( [DBFilesystem sharedFilesystem].status & DBFileStateDownloading ) {
         NSLog(@"Downloading");
+        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
         self.syncing = YES;
     } else if ( [DBFilesystem sharedFilesystem].status & DBFileStateUploading ) {
         NSLog(@"Uploading");
+        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
         self.syncing = YES;
     } else {
+        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
         self.syncing = NO;
     }
 }

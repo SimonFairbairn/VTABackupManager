@@ -124,8 +124,7 @@ NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerB
 
 -(void)reloadBackups {
     self.localBackupList = nil;
-    
-    NSLog(@"Backups reloaded: %@", self.localBackupList);
+    self.backupList = nil;
 }
 
 -(NSMutableArray *)sortBackups:(NSMutableArray *)arrayOfBackups {

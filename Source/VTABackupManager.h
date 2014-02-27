@@ -25,6 +25,9 @@
 
 #import "VTABackupItem.h"
 
+extern NSString *VTABackupManagerBackupStateDidChangeNotification;
+
+
 // Notifications
 #define VTABackupManagerFileListWillChangeNotification @"VTABackupManagerFileListWillChangeNotification"
 #define VTABackupManagerFileListDidChangeNotification @"VTABackupManagerFileListDidChangeNotification"
@@ -45,6 +48,11 @@
  *  An array of VTABackupItems representing the backups
  */
 @property (nonatomic, readonly) NSMutableArray *backupList;
+
+/**
+ *  The current state of the backup
+ */
+@property (nonatomic, readonly, getter = isRunning) BOOL running;
 
 /**
  *  Gets the shared instance
@@ -89,7 +97,8 @@ withCompletitionHandler:(void (^)(BOOL success, NSError *error))completion;
  */
 -(BOOL)deleteBackupItem:(VTABackupItem *)item;
 
-
 -(NSArray *)allBackups;
+
+
 
 @end

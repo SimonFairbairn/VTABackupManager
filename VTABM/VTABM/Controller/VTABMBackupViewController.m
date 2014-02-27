@@ -49,21 +49,6 @@
     return _backupList;
 }
 
-#pragma mark - View Lifecycle
-
--(void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-    
-    /**
-     *  3. Find out if Dropbox is enabled or not
-     */
-    self.dropboxSwitch.on = [VTADropboxManager sharedManager].dropboxEnabled;
-}
-
--(void)dealloc {
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
-}
-
 #pragma mark - Methods
 
 /**
@@ -74,16 +59,54 @@
     return [[backups sortedArrayUsingDescriptors:@[dateStringSortDescriptor]] mutableCopy];
 }
 
+#pragma mark - View Lifecycle
+
+-(void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    
+    /**
+     *  3. Find out if Dropbox is enabled or not
+     */
+    self.dropboxSwitch.on = [VTADropboxManager sharedManager].dropboxEnabled;
+
+    /**
+     *  4. Subscribe to the relevant notifications
+     */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(backupStateDidChange:) name:VTABackupManagerBackupStateDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(dropboxAccountDidChange:) name:VTABackupManagerDropboxAccountDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(dropboxAccountDidChange:) name:VTABackupManagerDropboxListDidChangeNotification object:nil];
+
+    
+    /**
+     *  KVO on syncing
+     */
+    [[VTADropboxManager sharedManager] addObserver:self forKeyPath:@"syncing" options:0 context:nil];
+    [[VTADropboxManager sharedManager] addObserver:self forKeyPath:@"dropboxAvailable" options:0 context:nil];
+    
+    // Get the activity indicator spinning.
+    [self backupStateDidChange:nil];
+}
+
+-(void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self checkNetwork];
+}
+
+-(void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
 
 #pragma mark - Actions
 
 -(IBAction)startBackup:(UIButton *)sender {
     
     self.tableView.userInteractionEnabled = NO;
-    [self.activityIndicator startAnimating];
+
     
     /**
-     * 4.   To run a backup, call this method with a completion handler. The method will return a new backup item, together with
+     * 5.   To run a backup, call this method with a completion handler. The method will return a new backup item, together with
      *      a flag letting you know whether or not a file with the same name was overwritten. You can then update your local
      *      backup list reference and update the tableview.
      */
@@ -107,7 +130,6 @@
         }
         [[[UIAlertView alloc] initWithTitle:title  message:message delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil] show];
         self.tableView.userInteractionEnabled = YES;
-        [self.activityIndicator stopAnimating];
     }
                                              forceOverwrite:YES];
 }
@@ -123,6 +145,47 @@
         [[[VTADropboxManager sharedManager].dropboxManager linkedAccount] unlink];
     }
 }
+
+#pragma mark - Notifications
+
+/**
+ *  Sent if the backup manager is performing a backup
+ */
+-(void)backupStateDidChange:(NSNotification *)note {
+    if ( [VTADropboxManager sharedManager].isRunning || [VTADropboxManager sharedManager].isSyncing ) {
+        [self.activityIndicator startAnimating];
+    } else {
+        [self.activityIndicator stopAnimating];
+    }
+}
+
+/**
+ *  Sent if the Dropbox account status changes
+ */
+-(void)dropboxAccountDidChange:(NSNotification *)note {
+    self.backupList = [[[VTADropboxManager sharedManager] allBackups] mutableCopy];
+    [self.tableView reloadData];
+}
+
+#pragma mark - KVO
+
+-(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+    NSLog(@"Value changed (%@) for key path: %@", change, keyPath);
+    [self backupStateDidChange:nil];
+    if ( [keyPath isEqualToString:@"dropboxAvailable"] ) {
+        [self checkNetwork];
+    }
+
+}
+
+-(void)checkNetwork {
+    if ( [VTADropboxManager sharedManager].dropboxEnabled ) {
+        if ( ![VTADropboxManager sharedManager].dropboxAvailable ) {
+            [[[UIAlertView alloc] initWithTitle:@"Dropbox Unavailable" message:@"Syncing will resume when you next connect to a network" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil] show];
+        }
+    }
+}
+
 
 #pragma mark - UITableViewDataSource 
 
@@ -154,7 +217,6 @@
 }
 
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    [self.activityIndicator startAnimating];
     VTABackupItem *backup = [self.backupList objectAtIndex:indexPath.row];
     [[VTADropboxManager sharedManager] restoreItem:backup
                            intoContext:[[VTABMStore sharedStore] context]
@@ -164,7 +226,6 @@
         } else {
             UIAlertView *view = [[UIAlertView alloc] initWithTitle:@"Restore Complete" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
             [view show];
-            [self.activityIndicator stopAnimating];
         }
     }];
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];

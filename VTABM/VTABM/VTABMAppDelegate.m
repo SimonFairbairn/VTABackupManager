@@ -17,6 +17,7 @@
 {
     // Override point for customization after application launch.
     
+    [VTADropboxManager sharedManager].useCellular = NO;
     return YES;
 }
 							

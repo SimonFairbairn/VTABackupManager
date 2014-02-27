@@ -24,6 +24,8 @@
 
 #define VTABackupManagerDebugLog 1
 
+NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerBackupStateDidChangeNotification";
+
 @interface VTABackupManager ()
 
 @property (nonatomic, readwrite) NSMutableArray *backupList;
@@ -213,6 +215,8 @@
      */
     self.running = YES;
     
+    [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupStateDidChangeNotification object:self];
+    
     
     // Create our private queue context
     NSManagedObjectContext *backgroundContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
@@ -252,6 +256,8 @@
 #if VTABackupManagerDebugLog
         NSLog(@"Objects for entity: %@", results);
 #endif
+        
+
         // Time to archive the results
         NSArray *dictionary = [self dataFromArrayOfManagedObjects:results Recursive:YES];
         NSMutableData * data = [[NSMutableData alloc] init];
@@ -284,9 +290,12 @@
         }        
         dispatch_async(dispatch_get_main_queue(), ^{
             self.running = NO;
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupStateDidChangeNotification object:self];
+            completion(success, error, item, didOverwrite);
+            
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerFileListDidChangeNotification object:self];
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupDidCompleteNotification object:self];
-            completion(success, error, item, didOverwrite);
+            
         });
         
     }];

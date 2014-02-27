@@ -10,8 +10,11 @@
 
 #import "VTABackupManager.h"
 
+extern NSString *VTABackupManagerDropboxAccountDidChangeNotification;
+extern NSString *VTABackupManagerDropboxSyncStatusDidChangeNotification;
+extern NSString *VTABackupManagerDropboxListDidChangeNotification;
+
 #define VTABackupManagerDropboxAccountDidChange @"VTABackupManagerDropboxAccountDidChange"
-#define VTABackupManagerDropboxNetworkDidChange @"VTABackupManagerDropboxNetworkDidChange"
 
 #define VTABackupManagerDropboxAccountChangeKey @"VTABackupManagerDropboxAccountChangeKey"
 

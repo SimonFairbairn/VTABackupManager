@@ -326,7 +326,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 -(void)sendItemToDropbox:(VTABackupItem *)item {
     
-    if ( !item ) {
+    if ( !item || !self.dropboxEnabled ) {
         return;
     }
     

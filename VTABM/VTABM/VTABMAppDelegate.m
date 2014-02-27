@@ -21,10 +21,13 @@
     
     NSURL *newUrl = [[[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] objectAtIndex:0] URLByAppendingPathComponent:@"backups" isDirectory:YES];
 
-    NSURL *testBackup1 = [newUrl URLByAppendingPathComponent:@"2014-02-18--iPad--7AC1978D-21B9-4C5F-A56C-50A305512E30.vtabackup"];
+    NSURL *testBackup1 = [newUrl URLByAppendingPathComponent:@"2014-01-18--iPad--7AC1978D-21B9-4C5F-A56C-50A305512E30.vtabackup"];
+    NSURL *testBackup2 = [newUrl URLByAppendingPathComponent:@"2014-01-16--iPad--7AC1978D-21B9-4C5F-A56C-50A305512E30.vtabackup"];
+    NSURL *testBackup3 = [newUrl URLByAppendingPathComponent:@"2014-01-12--iPad--7AC1978D-21B9-4C5F-A56C-50A305512E30.vtabackup"];
     
     [[NSFileManager defaultManager] copyItemAtURL:url toURL:testBackup1 error:nil];
-    
+    [[NSFileManager defaultManager] copyItemAtURL:url toURL:testBackup2 error:nil];
+    [[NSFileManager defaultManager] copyItemAtURL:url toURL:testBackup3 error:nil];
     
     [VTADropboxManager sharedManager].backupsToKeep  = @(5);
     return YES;

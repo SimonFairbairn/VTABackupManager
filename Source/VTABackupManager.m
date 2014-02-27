@@ -289,12 +289,15 @@ NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerB
         // If error is set, we weren't successful
         success = ( error ) ? NO : YES;
 
-        VTABackupItem *item;
+        VTABackupItem *item = newItem;
         if ( !didOverwrite ) {
             [self.localBackupList addObject:newItem];
             item = [self getLatestItemFromItem:newItem];
         }        
         dispatch_async(dispatch_get_main_queue(), ^{
+            
+            NSLog(@"%@", newItem);
+            
             self.running = NO;
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupStateDidChangeNotification object:self];
             completion(success, error, item, didOverwrite);

@@ -143,6 +143,7 @@
         [[VTADropboxManager sharedManager].dropboxManager linkFromController:self];
     } else {
         [[[VTADropboxManager sharedManager].dropboxManager linkedAccount] unlink];
+        [self.activityIndicator stopAnimating];
     }
 }
 

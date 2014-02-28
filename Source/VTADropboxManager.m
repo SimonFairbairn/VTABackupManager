@@ -11,7 +11,7 @@
 #import "DropboxCredentials.h"
 #import "Reachability.h"
 
-#define VTADropboxManagerDebugLog 0
+#define VTADropboxManagerDebugLog 1
 
 NSString *VTABackupManagerDropboxAccountDidChangeNotification = @"VTABackupManagerDropboxAccountDidChangeNotification";
 NSString *VTABackupManagerDropboxSyncStatusDidChangeNotification = @"VTABackupManagerDropboxSyncStatusDidChangeNotification";
@@ -172,7 +172,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 #endif
 #endif
     
-    
     if ( [DBFilesystem sharedFilesystem].status & DBFileStateDownloading ) {
         
 #ifdef DEBUG
@@ -181,7 +180,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 #endif
 #endif
         
-        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
         self.syncing = YES;
     } else if ( [DBFilesystem sharedFilesystem].status & DBFileStateUploading ) {
 
@@ -191,20 +189,30 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 #endif
 #endif
         
-        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
         self.syncing = YES;
     } else {
-        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
         self.syncing = NO;
     }
+    
+    if ( self.dropboxEnabled && !self.dropboxAvailable ) {
+        self.syncing = NO;
+    }
+
 }
 
 -(void)loadFiles {
+    
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
+    NSLog(@"Load files called");
+#endif
+#endif
+    
     if (_loadingFiles) {
         
 #ifdef DEBUG
 #if VTADropboxManagerDebugLog
-        NSLog(@"Uploading");
+        NSLog(@"Loading files already loading");
 #endif
 #endif
         
@@ -217,6 +225,12 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
         
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
+        NSLog(@"in background block");
+#endif
+#endif
+        
         [super reloadBackups];
         /**
          *  Move any existing local backups to Dropbox
@@ -224,6 +238,12 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         for ( VTABackupItem *item in [super allBackups] ) {
             [self sendItemToDropbox:item];
         }
+        
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
+        NSLog(@"Finished sending items");
+#endif
+#endif
         
         NSArray *immContents = [[DBFilesystem sharedFilesystem] listFolder:[DBPath root] error:nil];
         NSMutableArray *tempArray = [[NSMutableArray alloc] init];
@@ -333,9 +353,32 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 }
 
 
+-(BOOL)canRestoreItem:(VTABackupItem *)item {
+    DBFile *file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath]  error:nil];
+
+    if ( !file ) return NO;
+    
+    BOOL canRestore = YES;
+    
+    if ( self.dropboxEnabled ) {
+        if ( !self.dropboxAvailable && !file.status.cached ) {
+            canRestore = NO;
+        }
+    }
+    
+    [file close];
+    return canRestore;
+}
+
+
 -(void)restoreItem:(VTABackupItem *)item intoContext:(NSManagedObjectContext *)context withCompletitionHandler:(void (^)(BOOL, NSError *))completion {
     
-    if ( _restoreInProgress ) return;
+    if ( _restoreInProgress ) {
+        NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"A Restore is already in progress."};
+        NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:0 userInfo:errorDictionary];
+        completion(NO, error);
+        return;
+    }
     _restoreInProgress = YES;
     self.syncing = YES;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^() {
@@ -349,6 +392,24 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
             if ( !file || !file.open ) {
                 file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath]  error:nil];
             }
+            
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
+            NSLog(@"Cached: %i", file.status.cached);
+#endif
+#endif
+            
+            if ( !self.dropboxAvailable && !file.status.cached  ) {
+                NSDictionary *errorDictionary = @{NSLocalizedDescriptionKey : @"File not available offline. Please connect to the Internet and try again."};
+                NSError *error = [NSError errorWithDomain:VTABackupManagerErrorDomain code:0 userInfo:errorDictionary];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self.syncing = NO;
+                    _restoreInProgress = NO;
+                    completion(NO, error);
+                });
+                return;
+            }
+            
             
             NSData *data = [file readData:nil];
             
@@ -384,7 +445,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 -(void)reachabilityChanged:(NSNotification *)note {
     
-    if ( self.hostReachability.currentReachabilityStatus == 0 || (self.hostReachability.currentReachabilityStatus == 2 && !self.shouldUseCellular) ) {
+    if ( self.hostReachability.currentReachabilityStatus == 0 ) {
         self.dropboxAvailable = NO;
         self.syncing = NO;
     } else {

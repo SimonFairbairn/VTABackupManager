@@ -46,4 +46,6 @@ extern NSString *VTABackupManagerDropboxListDidChangeNotification;
 
 @property (nonatomic) BOOL dropboxEnabled;
 
+-(BOOL)canRestoreItem:(VTABackupItem *)item;
+
 @end

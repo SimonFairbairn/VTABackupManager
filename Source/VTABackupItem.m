@@ -36,6 +36,8 @@ static NSString *deviceUUID;
         
         NSDictionary *dictionary = [[NSFileManager defaultManager] attributesOfItemAtPath:[url path] error:nil];
         _creationDate = dictionary[NSFileCreationDate];
+        
+        
         _filePath = [name lastPathComponent];
         _fileName = [_filePath stringByDeletingPathExtension];
         
@@ -46,14 +48,20 @@ static NSString *deviceUUID;
             _dateStringAsDate = [dateFormatter dateFromString:_dateString];
         }
         
+        if ( !_creationDate ) {
+            _creationDate = [_dateStringAsDate dateByAddingTimeInterval:10];
+        }
+        
         if ([arrayOfItems count] > 1) {
             _deviceName = [arrayOfItems objectAtIndex:1];
         }
         
         if ([arrayOfItems count] > 2 ) {
             
-            _fileDeviceUUID = [arrayOfItems objectAtIndex:2];
+            NSString *lastComponent = [arrayOfItems objectAtIndex:2];
             
+            _fileDeviceUUID = [[lastComponent componentsSeparatedByString:@" "] firstObject];
+            _fileUUID = _fileDeviceUUID;
             if ( [_fileDeviceUUID isEqualToString:[VTABackupItem deviceUUID]] ) {
                 _currentDevice = YES;
             }

@@ -185,7 +185,6 @@ NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerB
 #if VTABackupManagerDebugLog
             NSLog(@"File exists, overwrite not set. No action to perform. Returning.");
 #endif
-            
             return;
         }
         

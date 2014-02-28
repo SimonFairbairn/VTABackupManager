@@ -295,7 +295,9 @@ NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerB
         }        
         dispatch_async(dispatch_get_main_queue(), ^{
             
+#if VTABackupManagerDebugLog
             NSLog(@"%@", newItem);
+#endif
             
             self.running = NO;
             [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerBackupStateDidChangeNotification object:self];

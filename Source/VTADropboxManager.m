@@ -11,7 +11,7 @@
 #import "DropboxCredentials.h"
 #import "Reachability.h"
 
-#define VTADropboxManagerDebugLog 1
+#define VTADropboxManagerDebugLog 0
 
 NSString *VTABackupManagerDropboxAccountDidChangeNotification = @"VTABackupManagerDropboxAccountDidChangeNotification";
 NSString *VTABackupManagerDropboxSyncStatusDidChangeNotification = @"VTABackupManagerDropboxSyncStatusDidChangeNotification";
@@ -165,15 +165,32 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 }
 
 -(void)reload {
+    
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
     NSLog(@"%s called", __PRETTY_FUNCTION__);
+#endif
+#endif
     
     
     if ( [DBFilesystem sharedFilesystem].status & DBFileStateDownloading ) {
+        
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
         NSLog(@"Downloading");
+#endif
+#endif
+        
         [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
         self.syncing = YES;
     } else if ( [DBFilesystem sharedFilesystem].status & DBFileStateUploading ) {
+
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
         NSLog(@"Uploading");
+#endif
+#endif
+        
         [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
         self.syncing = YES;
     } else {
@@ -184,7 +201,13 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 -(void)loadFiles {
     if (_loadingFiles) {
-        NSLog(@"Already loading. Returning.");
+        
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
+        NSLog(@"Uploading");
+#endif
+#endif
+        
         return;
     }
     _loadingFiles = YES;
@@ -220,7 +243,13 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
         
         dispatch_async(dispatch_get_main_queue(), ^() {
+            
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
             NSLog(@"%@", tempArray);
+#endif
+#endif
+
             self.dropboxBackups = [[NSMutableArray alloc] initWithArray:tempArray];
             _loadingFiles = NO;
             self.syncing = NO;
@@ -257,7 +286,13 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     }
     
     if ( [[NSFileManager defaultManager] fileExistsAtPath:[item.fileURL path] isDirectory:NO] ) {
+        
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
         NSLog(@"File exists");
+#endif
+#endif
+        
     }
         
         DBError *fileError;
@@ -321,8 +356,15 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
             
             // Time to archive the results
             if ( ![data writeToFile:[localURL path]  atomically:YES] ) {
+                
+#ifdef DEBUG
+#if VTADropboxManagerDebugLog
                 NSLog(@"ERROR: Couldn’t write file");
+#endif
+#endif
+                
             }
+            
             localItem = [[VTABackupItem alloc] initWithURL:localURL name:item.fileName];
         }
         

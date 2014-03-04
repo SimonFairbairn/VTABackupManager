@@ -448,17 +448,21 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 
 -(BOOL)canRestoreItem:(VTABackupItem *)item {
+    
+    if ( self.dropboxEnabled ) {
+        return YES;
+    }
+    
     DBFile *file = [[DBFilesystem sharedFilesystem] openFile:[[DBPath root] childPath:item.filePath]  error:nil];
 
     if ( !file ) return NO;
     
     BOOL canRestore = YES;
     
-    if ( self.dropboxEnabled ) {
+
         if ( !self.dropboxAvailable && !file.status.cached ) {
             canRestore = NO;
         }
-    }
     
     [file close];
     return canRestore;

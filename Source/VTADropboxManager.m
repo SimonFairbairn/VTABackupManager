@@ -449,7 +449,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 
 -(BOOL)canRestoreItem:(VTABackupItem *)item {
     
-    if ( self.dropboxEnabled ) {
+    if ( !self.dropboxEnabled ) {
         return YES;
     }
     

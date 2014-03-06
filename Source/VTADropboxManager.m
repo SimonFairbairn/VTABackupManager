@@ -341,12 +341,16 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
         DBError *fileInfoError;
         DBFileInfo *item = [[DBFilesystem sharedFilesystem] fileInfoForPath:[[DBPath root] childPath:aItem.filePath]  error:&fileInfoError];
         if ( fileInfoError ) {
-            [NSException raise:NSInvalidArgumentException format:@"%@", [fileInfoError localizedDescription]];
+            
         }
         
-        DBError *deleteError;
-        if ( [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError] ) {
-            return YES;
+        if ( item ) {
+            DBError *deleteError;
+            if ( [[DBFilesystem sharedFilesystem] deletePath:item.path error:&deleteError] ) {
+                return YES;
+            } else {
+                return NO;
+            }
         } else {
             return NO;
         }

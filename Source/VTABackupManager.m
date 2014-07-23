@@ -312,8 +312,14 @@ NSString *VTABackupManagerBackupStateDidChangeNotification = @"VTABackupManagerB
 
 -(VTABackupItem *)getLatestItemFromItem:(VTABackupItem *)newItem {
     self.backupList = [self sortBackups:self.localBackupList];
-    NSInteger location = [self.backupList indexOfObject:newItem];
-    return [[VTABackupManager sharedManager].backupList objectAtIndex:location];
+    NSUInteger location = [self.backupList indexOfObject:newItem];
+
+    if ( location < [[VTABackupManager sharedManager].backupList count] ) {
+        return [[VTABackupManager sharedManager].backupList objectAtIndex:location];
+    } else {
+        return nil;
+    }
+
 }
 
 -(void)deleteOldBackups {

@@ -27,7 +27,7 @@ static NSString *deviceUUID;
     if ( self = [super init] ) {
         if ( !dateFormatter ) {
             dateFormatter = [[NSDateFormatter alloc] init];
-            dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+            dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
             dateFormatter.timeZone = [NSTimeZone localTimeZone];
             dateFormatter.dateFormat = @"yyyy-MM-dd";
         }
@@ -76,7 +76,7 @@ static NSString *deviceUUID;
     if ( self = [super init] ) {
         if ( !dateFormatter ) {
             dateFormatter = [[NSDateFormatter alloc] init];
-            dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+            dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
             dateFormatter.timeZone = [NSTimeZone localTimeZone];
             dateFormatter.dateFormat = @"yyyy-MM-dd";
         }
@@ -122,14 +122,14 @@ static NSString *deviceUUID;
     
     if ( !dateFormatter ) {
         dateFormatter = [[NSDateFormatter alloc] init];
-        dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+        dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
         dateFormatter.timeZone = [NSTimeZone localTimeZone];
         dateFormatter.dateFormat = @"yyyy-MM-dd";
     }
     
-    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
     calendar.timeZone = [NSTimeZone localTimeZone];
-    NSDateComponents *localComponents = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit | NSHourCalendarUnit | NSMinuteCalendarUnit )  fromDate:[NSDate date]];
+    NSDateComponents *localComponents = [calendar components:(NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute )  fromDate:[NSDate date]];
     localComponents.calendar = calendar;
     
     NSString *dateString = [NSString stringWithFormat:@"%@--%@--%@.%@", [dateFormatter stringFromDate:[localComponents date]], [[UIDevice currentDevice] model], [VTABackupItem deviceUUID], extension];

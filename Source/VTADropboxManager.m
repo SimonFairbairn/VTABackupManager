@@ -55,7 +55,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     
     if ( !_dateFormatter ) {
         _dateFormatter = [[NSDateFormatter alloc] init];
-        _dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+        _dateFormatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
         _dateFormatter.timeZone = [NSTimeZone localTimeZone];
         // We DON'T want localised strings in this case
         _dateFormatter.dateFormat = @"yyyy-MM-dd";

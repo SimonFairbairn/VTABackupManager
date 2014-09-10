@@ -364,8 +364,9 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     if ( !item || !self.dropboxEnabled ) {
         return;
     }
+    BOOL *isDirectory = NULL;
     
-    if ( [[NSFileManager defaultManager] fileExistsAtPath:[item.fileURL path] isDirectory:NO] ) {
+    if ( [[NSFileManager defaultManager] fileExistsAtPath:[item.fileURL path] isDirectory:isDirectory] ) {
         
 #ifdef DEBUG
 #if VTADropboxManagerDebugLog

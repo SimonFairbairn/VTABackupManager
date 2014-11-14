@@ -16,6 +16,7 @@
 NSString *VTABackupManagerDropboxAccountDidChangeNotification = @"VTABackupManagerDropboxAccountDidChangeNotification";
 NSString *VTABackupManagerDropboxSyncStatusDidChangeNotification = @"VTABackupManagerDropboxSyncStatusDidChangeNotification";
 NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerDropboxListDidChangeNotification";
+NSString *VTABackupManagerDropboxFileDidChangeNotification = @"VTABackupManagerDropboxFileDidChangeNotification";
 
 @interface VTADropboxManager ()
 
@@ -390,23 +391,31 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
 #endif
             
             file = [[DBFilesystem sharedFilesystem] createFile:[[DBPath root] childPath:item.filePath]  error:&fileError];
+            item.uploading = YES;
         }
     
-//    if ( !self.actionFileList ) {
-//        self.actionFileList = [[NSMutableArray alloc] init];
-//    }
-//    [self.actionFileList addObject:file];
-//    
-//    __weak DBFile *weakFile = file;
-//    [file addObserver:self block:^{
-//        NSLog(@"%i", weakFile.status.cached);
-//        NSLog(@"%f", weakFile.status.progress);
-//        
-//        if ( weakFile.status.cached ) {
-//            [weakFile close];
-//        }
-//        
-//    }];
+    if ( !self.actionFileList ) {
+        self.actionFileList = [[NSMutableArray alloc] init];
+    }
+    [self.actionFileList addObject:file];
+    
+    __weak DBFile *weakFile = file;
+    [file addObserver:self block:^{
+        
+        if ( item.uploading && weakFile.status.progress > 0.99 ) {
+            item.uploading = NO;
+            [self.actionFileList removeObject:weakFile];
+            NSLog(@"%@", self.actionFileList);
+            [weakFile close];
+        } else if ( !item.uploading ) {
+            [weakFile close];
+        } else {
+            NSLog(@"Uploading file: %f", weakFile.status.progress);
+            [[NSNotificationCenter defaultCenter] postNotificationName:VTABackupManagerDropboxFileDidChangeNotification object:self userInfo:@{@"file" : item}];
+            
+        }
+        
+    }];
     
     if ( self.dropboxEnabled ) {
         if ( fileError ) {
@@ -419,7 +428,7 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     }
     
     
-    [file close];
+//    [file close];
     
 #ifdef DEBUG
 #if VTADropboxManagerDebugLog
@@ -438,7 +447,6 @@ NSString *VTABackupManagerDropboxListDidChangeNotification = @"VTABackupManagerD
     [super backupEntityWithName:name inContext:context completionHandler:^(BOOL success, NSError *error, VTABackupItem *newItem, BOOL didOverwrite) {
         
         if ( self.dropboxEnabled ) {
-            
 #ifdef DEBUG
 #if VTADropboxManagerDebugLog
             NSLog(@"Sending new item to Dropbox");

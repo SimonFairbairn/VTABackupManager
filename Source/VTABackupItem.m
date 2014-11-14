@@ -21,6 +21,13 @@ static NSString *deviceUUID;
 
 @implementation VTABackupItem
 
+#pragma mark - Properties
+
+-(void)setUploading:(BOOL)uploading {
+    _uploading = uploading;
+    
+}
+
 #pragma mark - Initialisation
 
 -(instancetype)initWithURL:(NSURL *)url name:(NSString *)name {

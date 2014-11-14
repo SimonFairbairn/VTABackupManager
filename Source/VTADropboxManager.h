@@ -13,6 +13,7 @@
 extern NSString *VTABackupManagerDropboxAccountDidChangeNotification;
 extern NSString *VTABackupManagerDropboxSyncStatusDidChangeNotification;
 extern NSString *VTABackupManagerDropboxListDidChangeNotification;
+extern NSString *VTABackupManagerDropboxFileDidChangeNotification;
 
 #define VTABackupManagerDropboxAccountDidChange @"VTABackupManagerDropboxAccountDidChange"
 

@@ -58,6 +58,7 @@
  */
 @property (nonatomic, getter = isCurrentDevice, readonly) BOOL currentDevice;
 
+@property (nonatomic) BOOL uploading;
 
 -(id)initWithFile:(NSURL *)file;
 

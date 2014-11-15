@@ -397,7 +397,10 @@ NSString *VTABackupManagerDropboxFileDidChangeNotification = @"VTABackupManagerD
     if ( !self.actionFileList ) {
         self.actionFileList = [[NSMutableArray alloc] init];
     }
-    [self.actionFileList addObject:file];
+    if ( file ) {
+        [self.actionFileList addObject:file];        
+    }
+
     
     __weak DBFile *weakFile = file;
     [file addObserver:self block:^{
